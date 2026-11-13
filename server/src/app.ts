@@ -3,6 +3,7 @@ import cors from "cors";
 import { VALUES_DIR } from "./config.js";
 import { loadLeagueBundle, NoValuesError, valuesMeta } from "./leagueData.js";
 import { detectValuesParams, SleeperClient, SleeperError } from "./sleeper.js";
+import { buildNeedsContext, leagueProfiles } from "./positionalNeeds.js";
 import { suggestTrades } from "./tradeEngine.js";
 import { FantasyCalcSnapshotProvider } from "./values/fantasyCalcSnapshot.js";
 import type { ValuesProvider } from "./values/provider.js";
@@ -58,7 +59,9 @@ export function createApp(deps: AppDeps = {}) {
     "/api/league/:id",
     wrap(async (req, res) => {
       const bundle = await loadLeagueBundle(sleeper, provider, req.params.id, req.query as Record<string, unknown>);
+      const needs = buildNeedsContext(bundle.teams, bundle.league.roster_positions);
       res.json({
+        profiles: [...leagueProfiles(bundle.teams, needs).values()],
         league: {
           id: bundle.league.league_id,
           name: bundle.league.name,
