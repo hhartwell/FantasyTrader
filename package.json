@@ -1,0 +1,19 @@
+{
+  "name": "fantasytrader",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server & npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "data:pull-values": "npm run data:pull-values --workspace server --",
+    "data:pull-players": "npm run data:pull-players --workspace server --"
+  }
+}

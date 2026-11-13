@@ -1,0 +1,29 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATA_DIR: /app/data
+      PORT: "3001"
+    volumes:
+      - ./server/src:/app/server/src
+      - ./server/scripts:/app/server/scripts
+      - ./server/test:/app/server/test
+      - ./data:/app/data
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      API_TARGET: http://server:3001
+    volumes:
+      - ./client/src:/app/client/src
+      - ./client/index.html:/app/client/index.html
+    depends_on:
+      - server
