@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports:
-      - "3001:3001"
+      - "${SERVER_HOST_PORT:-3001}:3001"
     environment:
       DATA_DIR: /app/data
       PORT: "3001"
@@ -19,7 +19,7 @@ services:
       context: .
       dockerfile: client/Dockerfile
     ports:
-      - "5173:5173"
+      - "${CLIENT_HOST_PORT:-5173}:5173"
     environment:
       API_TARGET: http://server:3001
     volumes:

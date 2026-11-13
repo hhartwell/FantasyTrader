@@ -13,13 +13,22 @@ import path from "node:path";
 import { VALUES_DIR } from "../src/config.js";
 import {
   PULL_MATRIX,
-  fantasyCalcUrl,
   isWithinGuard,
   snapshotFileName,
   type FantasyCalcEntry,
   type ValuesParams,
   type ValuesSnapshot,
 } from "../src/values/snapshotFiles.js";
+
+function fantasyCalcUrl(p: ValuesParams): string {
+  const q = new URLSearchParams({
+    isDynasty: String(p.isDynasty),
+    numQbs: String(p.numQbs),
+    numTeams: String(p.numTeams),
+    ppr: String(p.ppr),
+  });
+  return `https://api.fantasycalc.com/values/current?${q}`;
+}
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};

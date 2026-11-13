@@ -63,13 +63,3 @@ export function isWithinGuard(fetchedAt: string | undefined, now = Date.now()): 
   const t = Date.parse(fetchedAt);
   return Number.isFinite(t) && now - t < MIN_REFETCH_MS;
 }
-
-export function fantasyCalcUrl(p: ValuesParams): string {
-  const q = new URLSearchParams({
-    isDynasty: String(p.isDynasty),
-    numQbs: String(p.numQbs),
-    numTeams: String(p.numTeams),
-    ppr: String(p.ppr),
-  });
-  return `https://api.fantasycalc.com/values/current?${q}`;
-}

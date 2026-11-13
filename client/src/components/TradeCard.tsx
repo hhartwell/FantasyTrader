@@ -33,7 +33,7 @@ export function TradeCard({ index, suggestion, myRosterId, tolerance }: Props) {
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-800" title="Fairness within tolerance">
         <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.round(evenness * 100)}%` }} />
       </div>
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-2 md:grid-cols-2 ${teams.length > 2 ? "xl:grid-cols-3" : ""}`}>
         {teams.map((t) => (
           <TeamLeg key={t.rosterId} team={t} isMe={t.rosterId === myRosterId} names={names} suggestion={suggestion} />
         ))}
@@ -101,12 +101,12 @@ function TeamLeg({
       )}
 
       <div className="mt-2 flex items-center gap-2" aria-label="Value received vs given">
-        <span className="w-14 text-right text-[11px] tabular-nums text-slate-400">{formatValue(team.receivedAdjusted)}</span>
-        <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-rose-400/40">
+        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">in {formatValue(team.receivedAdjusted)}</span>
+        <div className="relative h-2 min-w-12 flex-1 overflow-hidden rounded-full bg-rose-400/40">
           <div className="h-full bg-emerald-400" style={{ width: `${Math.round(share * 100)}%` }} />
           <div className="absolute inset-y-0 left-1/2 w-px bg-slate-950" />
         </div>
-        <span className="w-14 text-[11px] tabular-nums text-slate-400">{formatValue(team.givenAdjusted)}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">out {formatValue(team.givenAdjusted)}</span>
       </div>
 
       <button
