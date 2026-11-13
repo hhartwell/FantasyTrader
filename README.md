@@ -29,24 +29,6 @@ Without Docker: `npm run dev` (server on 3001, Vite on 5173 with `/api` proxied)
 
 Tests: `npm test` (Vitest, no network). Typecheck: `npm run typecheck`.
 
-## FantasyCalc terms
-
-- Only `server/scripts/pullValues.ts` calls `GET https://api.fantasycalc.com/values/current`.
-It refuses to refetch a parameter set pulled less than 3 hours ago and waits between calls
-(`--delay-ms`, default 5000).
-- Snapshots live in `data/values/{isDynasty}-{numQbs}qb-{numTeams}t-{ppr}ppr.json` (git-ignored),
-with `-teplus` or `-teplusplus` added when a tight end premium board is pulled. They are shared
-by every user and request. Missing settings fall back to the nearest snapshot, and the UI says so.
-The default pull is no TE premium; pass `--tep=te+`, `--tep=te++`, or `--tep=all` to fetch those boards.
-- Sleeper ADP and Yahoo overall rank are separate snapshots in `data/rankings/` (also git-ignored),
-pulled by `npm run data:pull-rankings`. The server never calls those APIs during a request.
-A rank is converted to a trade value in the app; it is not a published trade price.
-Sleeper ADP follows dynasty, superflex, and PPR. Yahoo is one overall list.
-- Values are attributed with a link to fantasycalc.com next to every values list and trade card,
-plus a static link in `client/index.html`.
-- Values sit behind the `ValuesProvider` interface (`server/src/values/provider.ts`) so the source
-can be swapped. Get FantasyCalc's written permission before any public release.
-
 ## Layout
 
 - `server/src/sleeper.ts`: Sleeper client with a 5-minute in-memory cache
@@ -56,4 +38,3 @@ can be swapped. Get FantasyCalc's written permission before any public release.
 - `server/scripts/`: manual pull scripts
 - `client/`: Vite + React + Tailwind, mobile-first
 
-API: `GET /api/leagues?username=`, `GET /api/league/:id`, `POST /api/trades`, `GET /api/values/status`.
