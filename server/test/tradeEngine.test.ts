@@ -255,6 +255,23 @@ describe("waiver drops", () => {
     expect(chooseWaiverDrops(roster, 8, 8, spots, new Set())?.map((p) => p.id)).toEqual(["scrub"]);
   });
 
+  it("does not drop a kicker or a defense when a skill player can be cut", () => {
+    const roster = [
+      player("qb", "QB", 4000),
+      player("rb1", "RB", 3000),
+      player("rb2", "RB", 2500),
+      player("wr1", "WR", 3000),
+      player("wr2", "WR", 2500),
+      player("te", "TE", 50),
+      player("wr3", "WR", 2000),
+      player("flex", "WR", 1500),
+      player("scrub", "WR", 100),
+      player("k", "K", 5),
+      player("def", "DEF", 1),
+    ];
+    expect(chooseWaiverDrops(roster, 10, 10, [...FULL, "K", "DEF"], new Set())?.map((p) => p.id)).toEqual(["scrub"]);
+  });
+
   it("will not cut a kept player, a taxi player, or the last starter at a position", () => {
     const roster = [
       player("qb", "QB", 4000),

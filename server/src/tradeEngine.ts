@@ -135,6 +135,13 @@ function isActive(player: EnginePlayer): boolean {
   return player.held == null;
 }
 
+/** Kickers and team defenses stay on the roster. A trade never cuts them to clear a spot. */
+const NOT_WAIVER_DROPS = new Set(["K", "DEF", "DST"]);
+
+function isDroppable(player: EnginePlayer): boolean {
+  return !NOT_WAIVER_DROPS.has(player.position);
+}
+
 function asActive(player: EnginePlayer): EnginePlayer {
   if (player.held == null) return player;
   return { id: player.id, name: player.name, position: player.position, value: player.value };
@@ -157,7 +164,7 @@ export function chooseWaiverDrops(
   const needed = Math.max(0, active.length - Math.max(beforeActive, slots));
   if (needed === 0) return [];
   const candidates = active
-    .filter((player) => !protectedIds.has(player.id))
+    .filter((player) => isDroppable(player) && !protectedIds.has(player.id))
     .sort((a, b) => a.value - b.value || a.id.localeCompare(b.id));
   const drops: EnginePlayer[] = [];
   let current = roster;
