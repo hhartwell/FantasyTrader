@@ -203,7 +203,7 @@ export default function App() {
           />
         )}
         {tab === "compare" && league && myRosterId != null && (
-          <LeagueBreakdown teams={league.teams} rosterId={myRosterId} />
+          <LeagueBreakdown teams={league.teams} rosterId={myRosterId} profiles={league.profiles} />
         )}
         {tab === "targets" && league && myRosterId != null && (
           <TargetsTab

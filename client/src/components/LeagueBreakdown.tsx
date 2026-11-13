@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { LeagueTeam, RosterPlayer } from "../api";
+import type { LeagueTeam, NeedsProfile, RosterPlayer } from "../api";
 import { formatPct, formatValue } from "../lib/format";
 import { leagueComparison, ordinal, type PositionComparison } from "../lib/leagueBreakdown";
+import { NeedsChips } from "./NeedsChips";
 import { Card, PlayerRow, PositionBadge } from "./ui";
 
 function versusLabel(delta: number | null): string {
@@ -21,20 +22,29 @@ function versusShort(delta: number | null): string {
 function PositionRow({ row }: { row: PositionComparison }) {
   const best = row.shareOfBest > 0 ? row.value / row.shareOfBest : row.restAverage;
   const mark = best > 0 ? Math.min(100, (row.restAverage / best) * 100) : 0;
+  const fill = Math.min(100, Math.max(0, row.shareOfBest * 100));
   return (
-    <li className="grid grid-cols-[2.25rem_1fr_auto] items-center gap-3">
+    <li className="flex items-center gap-3">
       <PositionBadge position={row.position} />
-      <div className="relative h-2 rounded-full bg-slate-800">
-        <div className="h-2 rounded-full bg-sky-400" style={{ width: `${Math.min(100, row.shareOfBest * 100)}%` }} />
+      <div className="relative min-w-0 flex-1" style={{ height: 10, borderRadius: 999, background: "#1e293b" }}>
+        <div style={{ width: `${fill}%`, height: "100%", borderRadius: 999, background: "#38bdf8" }} />
         {mark > 0 && (
           <span
-            className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-full bg-slate-200"
-            style={{ left: `${mark}%` }}
             title="Average of the other teams"
+            style={{
+              position: "absolute",
+              left: `${mark}%`,
+              top: -3,
+              width: 2,
+              height: 16,
+              borderRadius: 999,
+              background: "#e2e8f0",
+              transform: "translateX(-1px)",
+            }}
           />
         )}
       </div>
-      <div className="text-right">
+      <div className="shrink-0 text-right" style={{ width: "7.5rem" }}>
         <div className="text-sm tabular-nums text-slate-100">{formatValue(row.value)}</div>
         <div className="text-xs text-slate-400">
           {ordinal(row.rank)} · {versusShort(row.versusRest)}
@@ -52,11 +62,20 @@ function rosterPlayers(team: LeagueTeam): RosterPlayer[] {
     .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 }
 
-export function LeagueBreakdown({ teams, rosterId }: { teams: LeagueTeam[]; rosterId: number }) {
+export function LeagueBreakdown({
+  teams,
+  rosterId,
+  profiles,
+}: {
+  teams: LeagueTeam[];
+  rosterId: number;
+  profiles: NeedsProfile[];
+}) {
   const comparison = leagueComparison(teams, rosterId);
-  const [open, setOpen] = useState<Set<number>>(() => new Set([rosterId]));
+  const [open, setOpen] = useState<Set<number>>(() => new Set());
   if (!comparison) return null;
   const byId = new Map(teams.map((team) => [team.rosterId, team]));
+  const profileById = new Map(profiles.map((profile) => [profile.rosterId, profile]));
   const toggle = (id: number) => {
     setOpen((current) => {
       const next = new Set(current);
@@ -95,14 +114,21 @@ export function LeagueBreakdown({ teams, rosterId }: { teams: LeagueTeam[]; rost
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => toggle(row.rosterId)}
-                  className={`flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left text-sm ${
+                  className={`flex min-h-11 w-full items-start justify-between gap-3 py-2 text-left text-sm ${
                     mine ? "text-sky-200" : "text-slate-300"
                   }`}
                 >
-                  <span className="min-w-0 truncate">
-                    <span className="mr-2 tabular-nums text-slate-500">{row.rank}</span>
-                    {row.name}
-                    {mine ? <span className="ml-2 text-xs text-sky-400">You</span> : null}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-baseline" style={{ gap: "0.75rem" }}>
+                      <span className="shrink-0 tabular-nums text-slate-500" style={{ width: "1.75rem" }}>
+                        {row.rank}
+                      </span>
+                      <span className="truncate">{row.name}</span>
+                      {mine ? <span className="shrink-0 text-xs text-sky-400">You</span> : null}
+                    </span>
+                    <span className="block" style={{ marginTop: "0.375rem", paddingLeft: "2.5rem" }}>
+                      <NeedsChips profile={profileById.get(row.rosterId)} compact />
+                    </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className="tabular-nums">{formatValue(row.total)}</span>
