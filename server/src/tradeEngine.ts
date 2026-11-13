@@ -62,6 +62,8 @@ export interface TradeRequest {
   rosterPositions: string[];
   myRosterId: number;
   targetPlayerIds: string[];
+  /** Players on my roster that must not be sent out. They still count for lineup and needs. */
+  excludedPlayerIds?: string[];
   mode: 2 | 3;
   /** Allowed value shortfall per team, e.g. 0.1 = 10%. */
   tolerance: number;
@@ -376,6 +378,9 @@ export function suggestTrades(req: TradeRequest): TradeResponse {
   const teams = new Map(req.teams.map((t) => [t.rosterId, t]));
   const me = teams.get(req.myRosterId);
   if (!me) throw new Error(`Roster ${req.myRosterId} not found in league`);
+  const excluded = new Set(req.excludedPlayerIds ?? []);
+  const giveable =
+    excluded.size === 0 ? me : { ...me, players: me.players.filter((p) => !excluded.has(p.id)) };
 
   const needs = buildNeedsContext(req.teams, req.rosterPositions);
   const profiles = leagueProfiles(req.teams, needs);
@@ -411,11 +416,11 @@ export function suggestTrades(req: TradeRequest): TradeResponse {
   for (const [ownerId, targets] of byOwner) {
     const owner = teams.get(ownerId)!;
     if (req.mode === 2) {
-      all.push(...searchTwoTeam(ctx, me, owner, targets));
+      all.push(...searchTwoTeam(ctx, giveable, owner, targets));
     } else if (targets.length > 2) {
       warnings.push(`3-team trades support at most 2 targets from ${owner.name}.`);
     } else {
-      all.push(...searchThreeTeam(ctx, me, owner, targets));
+      all.push(...searchThreeTeam(ctx, giveable, owner, targets));
     }
   }
 

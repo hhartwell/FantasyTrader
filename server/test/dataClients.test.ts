@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { mergeOverrides } from "../src/leagueData.js";
 import { detectValuesParams, SleeperClient, type SleeperLeague } from "../src/sleeper.js";
 import { FantasyCalcSnapshotProvider, pickNearest } from "../src/values/fantasyCalcSnapshot.js";
 import {
@@ -19,6 +20,7 @@ const p = (isDynasty: boolean, numQbs: 1 | 2, numTeams: number, ppr: 0 | 0.5 | 1
   numQbs,
   numTeams,
   ppr,
+  tep: "none",
 });
 
 describe("snapshot files", () => {
@@ -30,6 +32,10 @@ describe("snapshot files", () => {
     const params = p(true, 2, 12, 0.5);
     expect(snapshotFileName(params)).toBe("true-2qb-12t-0.5ppr.json");
     expect(parseSnapshotFileName("true-2qb-12t-0.5ppr.json")).toEqual(params);
+    expect(snapshotFileName({ ...params, tep: "te+" })).toBe("true-2qb-12t-0.5ppr-teplus.json");
+    expect(parseSnapshotFileName("true-2qb-12t-0.5ppr-teplus.json")).toEqual({ ...params, tep: "te+" });
+    expect(snapshotFileName({ ...params, tep: "te++" })).toBe("true-2qb-12t-0.5ppr-teplusplus.json");
+    expect(parseSnapshotFileName("true-2qb-12t-0.5ppr-teplusplus.json")).toEqual({ ...params, tep: "te++" });
     expect(parseSnapshotFileName("notes.json")).toBeNull();
   });
 
@@ -52,6 +58,10 @@ describe("nearest snapshot fallback", () => {
   });
   it("keeps superflex over a PPR match", () => {
     expect(pickNearest(p(true, 2, 10, 0), available)).toEqual(p(true, 2, 12, 1));
+  });
+  it("prefers the TE premium tier over team count and PPR", () => {
+    const tePlus = { ...p(true, 2, 10, 0.5), tep: "te+" as const };
+    expect(pickNearest({ ...p(true, 2, 12, 1), tep: "te+" }, [p(true, 2, 12, 1), tePlus])).toEqual(tePlus);
   });
 });
 
@@ -110,6 +120,32 @@ describe("Sleeper client", () => {
       ),
     ).toEqual(p(false, 2, 10, 0.5));
     expect(detectValuesParams(league({ settings: { type: 1 }, scoring_settings: {} }))).toEqual(p(true, 1, 12, 0));
+  });
+
+  it("detects a tight end premium from bonus or TE-specific reception points", () => {
+    expect(detectValuesParams(league({ scoring_settings: { rec: 1, bonus_rec_te: 0.5 } }))).toEqual({
+      ...p(true, 1, 12, 1),
+      tep: "te+",
+    });
+    expect(detectValuesParams(league({ scoring_settings: { rec: 1, bonus_rec_te: 1 } }))).toEqual({
+      ...p(true, 1, 12, 1),
+      tep: "te+",
+    });
+    expect(detectValuesParams(league({ scoring_settings: { rec: 1, bonus_rec_te: 1.5 } }))).toEqual({
+      ...p(true, 1, 12, 1),
+      tep: "te++",
+    });
+    expect(detectValuesParams(league({ scoring_settings: { rec: 1, rec_te: 2 } }))).toEqual({
+      ...p(true, 1, 12, 1),
+      tep: "te+",
+    });
+    expect(detectValuesParams(league({ scoring_settings: { rec: 1, bonus_rec_te: 0 } }))).toEqual(p(true, 1, 12, 1));
+  });
+
+  it("accepts a tight end premium override and ignores unknown values", () => {
+    expect(mergeOverrides(p(true, 1, 12, 1), { tep: "te++" }).tep).toBe("te++");
+    expect(mergeOverrides(p(true, 1, 12, 1), { tep: "1.5" }).tep).toBe("none");
+    expect(mergeOverrides({ ...p(true, 1, 12, 1), tep: "te+" }, {}).tep).toBe("te+");
   });
 
   it("caches responses within the TTL", async () => {

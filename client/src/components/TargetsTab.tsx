@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { LeagueResponse, RosterPlayer } from "../api";
 import { formatValue } from "../lib/format";
-import { FantasyCalcAttribution } from "./FantasyCalcAttribution";
+import { ValuesAttribution } from "./ValuesAttribution";
 import { Chip, PlayerRow } from "./ui";
 
 const FILTERS = ["ALL", "QB", "RB", "WR", "TE"] as const;
@@ -76,7 +76,7 @@ export function TargetsTab({ league, myRosterId, targets, onToggle, onClear, onF
 
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-slate-400">{visible.length} players on other rosters</span>
-        <FantasyCalcAttribution />
+        <ValuesAttribution source={league.values.source} />
       </div>
 
       <ul className="grid gap-x-4 md:grid-cols-2">

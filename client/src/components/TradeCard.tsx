@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TeamOutcome, TradeSuggestion } from "../api";
 import { formatPct, formatValue, receiveShare } from "../lib/format";
-import { FantasyCalcAttribution } from "./FantasyCalcAttribution";
+import { ValuesAttribution } from "./ValuesAttribution";
 import { PositionBadge } from "./ui";
 
 interface Props {
@@ -9,9 +9,10 @@ interface Props {
   suggestion: TradeSuggestion;
   myRosterId: number;
   tolerance: number;
+  source: { name: string; url: string };
 }
 
-export function TradeCard({ index, suggestion, myRosterId, tolerance }: Props) {
+export function TradeCard({ index, suggestion, myRosterId, tolerance, source }: Props) {
   const teams = [...suggestion.teams].sort((a, b) => (a.rosterId === myRosterId ? -1 : b.rosterId === myRosterId ? 1 : 0));
   const names = new Map(suggestion.teams.map((t) => [t.rosterId, t.rosterId === myRosterId ? "you" : t.name]));
   const evenness = Math.max(0, 1 - suggestion.maxImbalancePct / Math.max(tolerance, 0.0001));
@@ -28,7 +29,7 @@ export function TradeCard({ index, suggestion, myRosterId, tolerance }: Props) {
             {suggestion.disruption} players move
           </p>
         </div>
-        <FantasyCalcAttribution />
+        <ValuesAttribution source={source} />
       </header>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-800" title="Fairness within tolerance">
         <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.round(evenness * 100)}%` }} />

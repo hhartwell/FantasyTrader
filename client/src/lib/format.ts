@@ -9,9 +9,15 @@ export function formatPct(fraction: number, signed = false): string {
   return `${signed && pct > 0 ? "+" : ""}${pct}%`;
 }
 
+export function tepLabel(tep: ValuesParams["tep"]): string {
+  if (tep === "te++") return "TE++";
+  if (tep === "te+") return "TE+";
+  return "No TEP";
+}
+
 export function settingsLabel(p: ValuesParams): string {
   const ppr = p.ppr === 1 ? "PPR" : p.ppr === 0.5 ? "Half PPR" : "Standard";
-  return `${p.isDynasty ? "Dynasty" : "Redraft"} · ${p.numQbs === 2 ? "Superflex" : "1QB"} · ${p.numTeams} teams · ${ppr}`;
+  return `${p.isDynasty ? "Dynasty" : "Redraft"} · ${p.numQbs === 2 ? "Superflex" : "1QB"} · ${p.numTeams} teams · ${ppr} · ${tepLabel(p.tep)}`;
 }
 
 export function timeAgo(iso: string, now = Date.now()): string {

@@ -1,8 +1,13 @@
+export type Tep = "none" | "te+" | "te++";
+
+export type ValueSource = "fantasycalc" | "sleeper" | "yahoo";
+
 export interface ValuesParams {
   isDynasty: boolean;
   numQbs: 1 | 2;
   numTeams: number;
   ppr: 0 | 0.5 | 1;
+  tep: Tep;
 }
 
 export interface ValuesMeta {
@@ -11,6 +16,8 @@ export interface ValuesMeta {
   exact: boolean;
   fetchedAt: string;
   source: { name: string; url: string };
+  /** Present when values were converted from a Sleeper or Yahoo rank. */
+  basis?: string;
 }
 
 export interface LeagueSummary {
@@ -117,26 +124,29 @@ export function fetchLeagues(username: string) {
   return request<LeaguesResponse>(`/api/leagues?username=${encodeURIComponent(username)}`);
 }
 
-export function fetchLeague(id: string, overrides?: ValuesParams) {
-  const q = overrides
-    ? "?" +
-      new URLSearchParams({
-        isDynasty: String(overrides.isDynasty),
-        numQbs: String(overrides.numQbs),
-        numTeams: String(overrides.numTeams),
-        ppr: String(overrides.ppr),
-      })
-    : "";
-  return request<LeagueResponse>(`/api/league/${id}${q}`);
+export function fetchLeague(id: string, overrides?: ValuesParams, source: ValueSource = "fantasycalc") {
+  const q = new URLSearchParams();
+  if (source !== "fantasycalc") q.set("source", source);
+  if (overrides) {
+    q.set("isDynasty", String(overrides.isDynasty));
+    q.set("numQbs", String(overrides.numQbs));
+    q.set("numTeams", String(overrides.numTeams));
+    q.set("ppr", String(overrides.ppr));
+    q.set("tep", overrides.tep);
+  }
+  const search = q.toString();
+  return request<LeagueResponse>(`/api/league/${id}${search ? `?${search}` : ""}`);
 }
 
 export function fetchTrades(body: {
   leagueId: string;
   myRosterId: number;
   targetPlayerIds: string[];
+  excludedPlayerIds?: string[];
   mode: 2 | 3;
   tolerance: number;
   values?: ValuesParams;
+  source?: ValueSource;
 }) {
   return request<TradesResponse>("/api/trades", {
     method: "POST",

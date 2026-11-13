@@ -24,6 +24,8 @@ export interface ValuesResult {
   exact: boolean;
   fetchedAt: string;
   source: ValuesSource;
+  /** Set when values come from a rank converted locally, not a trade-value board. */
+  basis?: string;
 }
 
 export interface SnapshotStatus {

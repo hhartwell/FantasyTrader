@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "data:pull-values": "tsx scripts/pullValues.ts",
-    "data:pull-players": "tsx scripts/pullPlayers.ts"
+    "data:pull-players": "tsx scripts/pullPlayers.ts",
+    "data:pull-rankings": "tsx scripts/pullRankings.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type SelectHTMLAttributes } from "react";
 import type { LeagueResponse, LeaguesResponse, ValuesParams } from "../api";
 import { avatarUrl, formatValue, settingsLabel, timeAgo } from "../lib/format";
-import { FantasyCalcAttribution } from "./FantasyCalcAttribution";
+import { ValuesAttribution } from "./ValuesAttribution";
 import { NeedsChips } from "./NeedsChips";
 import { Card, ErrorNote, PlayerRow, Spinner } from "./ui";
 
@@ -20,10 +20,30 @@ interface Props {
   onSettings: (p: ValuesParams) => void;
   myRosterId: number | null;
   onPickRoster: (id: number) => void;
+  kept: string[];
+  onToggleKept: (playerId: string) => void;
 }
 
 const selectCls =
-  "min-h-11 w-full rounded-xl bg-slate-800 px-3 text-sm text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-sky-500";
+  "min-h-11 w-full appearance-none rounded-xl bg-slate-800 pl-3 pr-12 text-sm text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-sky-500";
+
+function FieldSelect({ className = "", ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className={`relative ${className}`}>
+      <select {...props} className={selectCls} />
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-slate-400"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+      </svg>
+    </div>
+  );
+}
 
 export function LeagueTab(props: Props) {
   const [draft, setDraft] = useState(props.username);
@@ -105,6 +125,8 @@ function LeagueDetails({
   onSettings,
   myRosterId,
   onPickRoster,
+  kept,
+  onToggleKept,
 }: Props & { league: LeagueResponse; settings: ValuesParams }) {
   const me = league.teams.find((t) => t.rosterId === myRosterId);
   const profile = league.profiles.find((p) => p.rosterId === myRosterId);
@@ -116,27 +138,24 @@ function LeagueDetails({
         <h2 className="text-lg font-semibold">{league.league.name}</h2>
         <p className="text-xs text-slate-400">Detected from Sleeper: {settingsLabel(league.league.detected)}</p>
         <div className="grid grid-cols-2 gap-2">
-          <select
+          <FieldSelect
             aria-label="League type"
-            className={selectCls}
             value={String(settings.isDynasty)}
             onChange={(e) => onSettings({ ...settings, isDynasty: e.target.value === "true" })}
           >
             <option value="true">Dynasty</option>
             <option value="false">Redraft</option>
-          </select>
-          <select
+          </FieldSelect>
+          <FieldSelect
             aria-label="QB format"
-            className={selectCls}
             value={settings.numQbs}
             onChange={(e) => onSettings({ ...settings, numQbs: Number(e.target.value) as 1 | 2 })}
           >
             <option value={1}>1QB</option>
             <option value={2}>Superflex</option>
-          </select>
-          <select
+          </FieldSelect>
+          <FieldSelect
             aria-label="Team count"
-            className={selectCls}
             value={settings.numTeams}
             onChange={(e) => onSettings({ ...settings, numTeams: Number(e.target.value) })}
           >
@@ -148,32 +167,42 @@ function LeagueDetails({
             {![8, 10, 12, 14, 16].includes(settings.numTeams) && (
               <option value={settings.numTeams}>{settings.numTeams} teams</option>
             )}
-          </select>
-          <select
+          </FieldSelect>
+          <FieldSelect
             aria-label="Scoring"
-            className={selectCls}
             value={settings.ppr}
             onChange={(e) => onSettings({ ...settings, ppr: Number(e.target.value) as 0 | 0.5 | 1 })}
           >
             <option value={0}>Standard</option>
             <option value={0.5}>Half PPR</option>
             <option value={1}>PPR</option>
-          </select>
+          </FieldSelect>
+          <FieldSelect
+            aria-label="Tight end premium"
+            className="col-span-2"
+            value={settings.tep}
+            onChange={(e) => onSettings({ ...settings, tep: e.target.value as ValuesParams["tep"] })}
+          >
+            <option value="none">No TE premium</option>
+            <option value="te+">TE+ premium</option>
+            <option value="te++">TE++ premium</option>
+          </FieldSelect>
         </div>
         <div className="space-y-1 text-xs text-slate-400">
           <p>
-            Values snapshot: {settingsLabel(v.used)} · pulled {timeAgo(v.fetchedAt)}
+            {v.basis ?? `Values snapshot: ${settingsLabel(v.used)}`} · pulled {timeAgo(v.fetchedAt)}
           </p>
           {!v.exact && (
             <p className="rounded-lg bg-amber-500/10 p-2 text-amber-300 ring-1 ring-amber-500/30">
-              No snapshot for {settingsLabel(v.requested)}. Using the nearest one ({settingsLabel(v.used)}).
+              {v.basis
+                ? `These rankings don't include ${settingsLabel(v.requested)}. Showing ${settingsLabel(v.used)}.`
+                : `No snapshot for ${settingsLabel(v.requested)}. Using the nearest one (${settingsLabel(v.used)}).`}
             </p>
           )}
         </div>
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-400">My team</span>
-          <select
-            className={selectCls}
+          <FieldSelect
             value={myRosterId ?? ""}
             onChange={(e) => onPickRoster(Number(e.target.value))}
           >
@@ -185,7 +214,7 @@ function LeagueDetails({
                 {t.teamName} ({t.ownerName})
               </option>
             ))}
-          </select>
+          </FieldSelect>
         </label>
         <NeedsChips profile={profile} />
       </Card>
@@ -196,13 +225,43 @@ function LeagueDetails({
             <h3 className="font-semibold">My roster</h3>
             <span className="text-xs text-slate-400">Total {formatValue(me.totalValue)}</span>
           </div>
-          <FantasyCalcAttribution className="mb-2" />
+          <p className="mb-2 text-xs text-slate-400">
+            {kept.length > 0
+              ? `${kept.length} kept off the trade block. Tap Kept to make them available again.`
+              : "Tap Keep to leave a player off the trade block."}
+          </p>
+          <ValuesAttribution source={league.values.source} className="mb-2" />
           <div className="divide-y divide-slate-800">
             {me.players
               .filter((p) => ["QB", "RB", "WR", "TE"].includes(p.position))
-              .map((p) => (
-                <PlayerRow key={p.id} player={p} />
-              ))}
+              .map((p) => {
+                const isKept = kept.includes(p.id);
+                return (
+                  <PlayerRow
+                    key={p.id}
+                    player={p}
+                    right={
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-pressed={isKept}
+                          onClick={() => onToggleKept(p.id)}
+                          className={`min-h-8 shrink-0 rounded-full px-2.5 text-xs font-medium ring-1 ${
+                            isKept
+                              ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
+                              : "text-slate-400 ring-slate-700"
+                          }`}
+                        >
+                          {isKept ? "Kept" : "Keep"}
+                        </button>
+                        <span className="w-12 text-right text-sm tabular-nums text-slate-200">
+                          {formatValue(p.value)}
+                        </span>
+                      </div>
+                    }
+                  />
+                );
+              })}
           </div>
         </Card>
       )}

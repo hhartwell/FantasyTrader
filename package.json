@@ -14,6 +14,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "data:pull-values": "npm run data:pull-values --workspace server --",
-    "data:pull-players": "npm run data:pull-players --workspace server --"
+    "data:pull-players": "npm run data:pull-players --workspace server --",
+    "data:pull-rankings": "npm run data:pull-rankings --workspace server --"
   }
 }

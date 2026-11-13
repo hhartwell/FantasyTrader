@@ -9,8 +9,14 @@ describe("format helpers", () => {
   });
 
   it("labels league settings", () => {
-    expect(settingsLabel({ isDynasty: true, numQbs: 2, numTeams: 12, ppr: 0.5 })).toBe(
-      "Dynasty · Superflex · 12 teams · Half PPR",
+    expect(settingsLabel({ isDynasty: true, numQbs: 2, numTeams: 12, ppr: 0.5, tep: "none" })).toBe(
+      "Dynasty · Superflex · 12 teams · Half PPR · No TEP",
+    );
+    expect(settingsLabel({ isDynasty: true, numQbs: 1, numTeams: 12, ppr: 1, tep: "te+" })).toBe(
+      "Dynasty · 1QB · 12 teams · PPR · TE+",
+    );
+    expect(settingsLabel({ isDynasty: false, numQbs: 1, numTeams: 10, ppr: 0, tep: "te++" })).toBe(
+      "Redraft · 1QB · 10 teams · Standard · TE++",
     );
   });
 

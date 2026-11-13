@@ -1,7 +1,8 @@
 import { loadPlayers } from "./players.js";
 import { detectValuesParams, type SleeperClient, type SleeperLeague } from "./sleeper.js";
 import type { ValuesProvider, ValuesResult } from "./values/provider.js";
-import type { ValuesParams } from "./values/snapshotFiles.js";
+import { TEP_LEVELS, type ValuesParams } from "./values/snapshotFiles.js";
+import { missingValuesMessage, type ValueSourceId } from "./values/valueSource.js";
 
 export interface RosterPlayer {
   id: string;
@@ -40,6 +41,9 @@ export function mergeOverrides(detected: ValuesParams, raw: Record<string, unkno
   if ([0, 0.5, 1].includes(Number(raw.ppr)) && raw.ppr !== undefined && raw.ppr !== "") {
     out.ppr = Number(raw.ppr) as ValuesParams["ppr"];
   }
+  if (typeof raw.tep === "string" && (TEP_LEVELS as readonly string[]).includes(raw.tep)) {
+    out.tep = raw.tep as ValuesParams["tep"];
+  }
   return out;
 }
 
@@ -49,6 +53,7 @@ export async function loadLeagueBundle(
   provider: ValuesProvider,
   leagueId: string,
   overrides: Record<string, unknown> = {},
+  source: ValueSourceId = "fantasycalc",
 ): Promise<LeagueBundle> {
   const [league, rosters, users] = await Promise.all([
     sleeper.getLeague(leagueId),
@@ -57,9 +62,7 @@ export async function loadLeagueBundle(
   ]);
   const detected = detectValuesParams(league);
   const values = provider.getValues(mergeOverrides(detected, overrides));
-  if (!values) {
-    throw new NoValuesError("No value snapshots found. Run `npm run data:pull-values` first.");
-  }
+  if (!values) throw new NoValuesError(missingValuesMessage(source));
   const playersDb = loadPlayers()?.players ?? {};
   const usersById = new Map(users.map((u) => [u.user_id, u]));
 
@@ -99,5 +102,6 @@ export function valuesMeta(v: ValuesResult) {
     exact: v.exact,
     fetchedAt: v.fetchedAt,
     source: v.source,
+    ...(v.basis ? { basis: v.basis } : {}),
   };
 }

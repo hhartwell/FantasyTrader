@@ -5,6 +5,8 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "${SERVER_HOST_PORT:-3001}:3001"
+    env_file:
+      - .env
     environment:
       DATA_DIR: /app/data
       PORT: "3001"
@@ -20,10 +22,13 @@ services:
       dockerfile: client/Dockerfile
     ports:
       - "${CLIENT_HOST_PORT:-5173}:5173"
+    env_file:
+      - .env
     environment:
       API_TARGET: http://server:3001
     volumes:
       - ./client/src:/app/client/src
       - ./client/index.html:/app/client/index.html
+      - ./client/vite.config.ts:/app/client/vite.config.ts
     depends_on:
       - server

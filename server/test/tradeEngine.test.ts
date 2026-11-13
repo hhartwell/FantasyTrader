@@ -90,6 +90,29 @@ describe("suggestTrades: 2-team", () => {
     });
     expect(wide.suggestions.length).toBeGreaterThan(tight.suggestions.length);
   });
+
+  it("never sends a player kept off the trade block, and still counts them on the roster", () => {
+    const outgoing = new Set(
+      res.suggestions.flatMap((s) => s.teams.find((t) => t.rosterId === 1)!.gives.map((p) => p.id)),
+    );
+    const kept = [...outgoing][0];
+    expect(kept).toBeTruthy();
+    const closed = suggestTrades({
+      teams,
+      rosterPositions: ROSTER_POSITIONS,
+      myRosterId: 1,
+      targetPlayerIds: [star.id],
+      excludedPlayerIds: [kept],
+      mode: 2,
+      tolerance: 0.1,
+      limit: 1000,
+    });
+    expect(closed.suggestions.length).toBeGreaterThan(0);
+    for (const s of closed.suggestions) {
+      expect(s.teams.find((t) => t.rosterId === 1)!.gives.map((p) => p.id)).not.toContain(kept);
+    }
+    expect(closed.profiles.find((p) => p.rosterId === 1)).toEqual(res.profiles.find((p) => p.rosterId === 1));
+  });
 });
 
 describe("suggestTrades: positional sanity", () => {

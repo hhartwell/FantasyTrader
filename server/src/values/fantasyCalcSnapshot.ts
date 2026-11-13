@@ -1,13 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { PlayerValue, SnapshotStatus, ValuesProvider, ValuesResult, ValuesSource } from "./provider.js";
-import { parseSnapshotFileName, type ValuesParams, type ValuesSnapshot } from "./snapshotFiles.js";
+import { parseSnapshotFileName, type Tep, type ValuesParams, type ValuesSnapshot } from "./snapshotFiles.js";
 
-/** Lower is closer. League type and QB format dominate; team count and PPR are fine-grained. */
+const TEP_RANK: Record<Tep, number> = { none: 0, "te+": 1, "te++": 2 };
+
+/**
+ * Lower is closer. League type and QB format dominate, then TE premium, then
+ * team count and PPR.
+ */
 export function paramsDistance(a: ValuesParams, b: ValuesParams): number {
   return (
     (a.isDynasty === b.isDynasty ? 0 : 1000) +
     (a.numQbs === b.numQbs ? 0 : 100) +
+    Math.abs(TEP_RANK[a.tep] - TEP_RANK[b.tep]) * 40 +
     Math.abs(a.numTeams - b.numTeams) * 2 +
     Math.abs(a.ppr - b.ppr) * 6
   );

@@ -7,6 +7,7 @@ interface Props {
   league: LeagueResponse;
   myRosterId: number;
   targets: string[];
+  keptCount: number;
   mode: 2 | 3;
   onMode: (m: 2 | 3) => void;
   tolerance: number;
@@ -36,6 +37,11 @@ export function TradesTab(props: Props) {
             <span className="text-slate-400">Pick target players on the Targets tab first.</span>
           )}
         </p>
+        {props.keptCount > 0 && (
+          <p className="text-xs text-amber-200/90">
+            {props.keptCount} {props.keptCount === 1 ? "player is" : "players are"} kept off the trade block.
+          </p>
+        )}
         <div className="flex gap-2">
           <Chip active={props.mode === 2} onClick={() => props.onMode(2)}>
             2-team
@@ -85,6 +91,7 @@ export function TradesTab(props: Props) {
               suggestion={s}
               myRosterId={props.myRosterId}
               tolerance={props.result!.tolerance}
+              source={props.result!.values.source}
             />
           ))}
         </div>

@@ -2,20 +2,25 @@
  * Manual FantasyCalc values pull. This is the ONLY code that talks to FantasyCalc;
  * the server reads the resulting snapshots from disk and never calls FantasyCalc.
  *
- *   npm run data:pull-values                       # full matrix (36 combos)
+ *   npm run data:pull-values                       # full matrix, no TE premium (36 combos)
  *   npm run data:pull-values -- --dynasty=true --qbs=2 --teams=12 --ppr=1
+ *   npm run data:pull-values -- --tep=te+          # same matrix on the TE+ board
+ *   npm run data:pull-values -- --tep=all          # none, TE+, and TE++ (108 combos)
  *   npm run data:pull-values -- --delay-ms=8000
  *
- * Any flag narrows the matrix. Combos pulled less than 3 hours ago are skipped.
+ * Any flag narrows the matrix. --tep accepts none (default), te+, te++, or all
+ * (teplus and teplusplus also work). Combos pulled less than 3 hours ago are skipped.
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 import { VALUES_DIR } from "../src/config.js";
 import {
   PULL_MATRIX,
+  TEP_LEVELS,
   isWithinGuard,
   snapshotFileName,
   type FantasyCalcEntry,
+  type Tep,
   type ValuesParams,
   type ValuesSnapshot,
 } from "../src/values/snapshotFiles.js";
@@ -26,6 +31,7 @@ function fantasyCalcUrl(p: ValuesParams): string {
     numQbs: String(p.numQbs),
     numTeams: String(p.numTeams),
     ppr: String(p.ppr),
+    tep: p.tep,
   });
   return `https://api.fantasycalc.com/values/current?${q}`;
 }
@@ -40,14 +46,34 @@ function parseArgs(argv: string[]): Record<string, string> {
   return out;
 }
 
+const TEP_FLAGS: Record<string, readonly Tep[]> = {
+  none: ["none"],
+  "te+": ["te+"],
+  teplus: ["te+"],
+  "te++": ["te++"],
+  teplusplus: ["te++"],
+  all: TEP_LEVELS,
+};
+
+function tepsFromArg(raw: string | undefined): readonly Tep[] {
+  if (raw === undefined) return ["none"];
+  const hit = TEP_FLAGS[raw];
+  if (!hit) {
+    console.error(`Unknown --tep=${raw}. Use none, te+, te++, or all.`);
+    process.exit(1);
+  }
+  return hit;
+}
+
 function selectCombos(args: Record<string, string>): ValuesParams[] {
+  const teps = tepsFromArg(args.tep);
   return PULL_MATRIX.filter(
     (p) =>
       (args.dynasty === undefined || String(p.isDynasty) === args.dynasty) &&
       (args.qbs === undefined || String(p.numQbs) === args.qbs) &&
       (args.teams === undefined || String(p.numTeams) === args.teams) &&
       (args.ppr === undefined || Number(args.ppr) === p.ppr),
-  );
+  ).flatMap((p) => teps.map((tep) => ({ ...p, tep })));
 }
 
 async function readFetchedAt(file: string): Promise<string | undefined> {

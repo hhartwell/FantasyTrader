@@ -6,14 +6,40 @@ import {
   type LeagueResponse,
   type LeaguesResponse,
   type TradesResponse,
+  type ValueSource,
   type ValuesParams,
 } from "./api";
+import { fantasyCalcEnabled } from "./config";
 import { BottomNav, type Tab } from "./components/BottomNav";
 import { LeagueTab } from "./components/LeagueTab";
 import { TargetsTab } from "./components/TargetsTab";
 import { TradesTab } from "./components/TradesTab";
+import { ValueSourceSelect } from "./components/ValueSourceSelect";
 
 const USERNAME_KEY = "fantasytrader.username";
+const KEPT_KEY = "fantasytrader.kept";
+
+function readKept(leagueId: string): string[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(KEPT_KEY) ?? "{}") as Record<string, unknown>;
+    const ids = all[leagueId];
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeKept(leagueId: string, ids: string[]) {
+  let all: Record<string, string[]> = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KEPT_KEY) ?? "{}") as Record<string, string[]>;
+    if (parsed && typeof parsed === "object") all = parsed;
+  } catch {
+    all = {};
+  }
+  all[leagueId] = ids;
+  localStorage.setItem(KEPT_KEY, JSON.stringify(all));
+}
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("league");
@@ -29,8 +55,10 @@ export default function App() {
   const [leagueLoading, setLeagueLoading] = useState(false);
   const [leagueError, setLeagueError] = useState<string | null>(null);
   const [myRosterId, setMyRosterId] = useState<number | null>(null);
+  const [valueSource, setValueSource] = useState<ValueSource>(fantasyCalcEnabled ? "fantasycalc" : "sleeper");
 
   const [targets, setTargets] = useState<string[]>([]);
+  const [kept, setKept] = useState<string[]>([]);
   const [mode, setMode] = useState<2 | 3>(2);
   const [tolerance, setTolerance] = useState(0.1);
   const [trades, setTrades] = useState<TradesResponse | null>(null);
@@ -60,6 +88,7 @@ export default function App() {
     setLeague(null);
     setOverrides(null);
     setTargets([]);
+    setKept(id ? readKept(id) : []);
     setTrades(null);
     setMyRosterId(null);
   };
@@ -70,7 +99,7 @@ export default function App() {
     let cancelled = false;
     setLeagueLoading(true);
     setLeagueError(null);
-    fetchLeague(leagueId, overrides ?? undefined)
+    fetchLeague(leagueId, overrides ?? undefined, valueSource)
       .then((res) => {
         if (cancelled) return;
         setLeague(res);
@@ -81,19 +110,45 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, overrides, userId]);
+  }, [leagueId, overrides, userId, valueSource]);
 
   const settings = overrides ?? league?.values.requested ?? null;
 
-  const findTrades = () => {
+  const searchTrades = (source: ValueSource) => {
     if (!leagueId || myRosterId == null || targets.length === 0) return;
     setTab("trades");
     setTradesLoading(true);
     setTradesError(null);
-    fetchTrades({ leagueId, myRosterId, targetPlayerIds: targets, mode, tolerance, values: settings ?? undefined })
+    fetchTrades({
+      leagueId,
+      myRosterId,
+      targetPlayerIds: targets,
+      excludedPlayerIds: kept,
+      mode,
+      tolerance,
+      values: settings ?? undefined,
+      source,
+    })
       .then(setTrades)
       .catch((e: Error) => setTradesError(e.message))
       .finally(() => setTradesLoading(false));
+  };
+
+  const findTrades = () => searchTrades(valueSource);
+
+  const changeValueSource = (source: ValueSource) => {
+    setValueSource(source);
+    setTrades(null);
+    if (tab === "trades") searchTrades(source);
+  };
+
+  const toggleKept = (id: string) => {
+    setKept((cur) => {
+      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+      if (leagueId) writeKept(leagueId, next);
+      return next;
+    });
+    setTrades(null);
   };
 
   const toggleTarget = (id: string) => {
@@ -113,6 +168,7 @@ export default function App() {
       </header>
 
       <main>
+        {leagueId && <ValueSourceSelect value={valueSource} onChange={changeValueSource} />}
         {tab === "league" && (
           <LeagueTab
             username={username}
@@ -131,6 +187,8 @@ export default function App() {
               setTrades(null);
             }}
             myRosterId={myRosterId}
+            kept={kept}
+            onToggleKept={toggleKept}
             onPickRoster={(id) => {
               setMyRosterId(id);
               setTargets([]);
@@ -153,6 +211,7 @@ export default function App() {
             league={league}
             myRosterId={myRosterId}
             targets={targets}
+            keptCount={kept.length}
             mode={mode}
             onMode={(m) => {
               setMode(m);

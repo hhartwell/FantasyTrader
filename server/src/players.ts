@@ -7,6 +7,8 @@ export interface SleeperPlayer {
   position: string | null;
   team: string | null;
   age: number | null;
+  /** Yahoo player id, when the players pull stored it. */
+  yahooId?: string | null;
 }
 
 export interface PlayersFile {

@@ -1,4 +1,4 @@
-import type { Ppr, ValuesParams } from "./values/snapshotFiles.js";
+import type { Ppr, Tep, ValuesParams } from "./values/snapshotFiles.js";
 
 const BASE = "https://api.sleeper.app/v1";
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
@@ -104,6 +104,26 @@ export class SleeperClient {
   }
 }
 
+/**
+ * Maps a TE reception bonus onto FantasyCalc's tiers.
+ * Up to 1.0 extra point per catch is TE+; anything above that is TE++.
+ */
+export function tepFromBonus(bonus: number): Tep {
+  if (!(bonus > 0)) return "none";
+  return bonus <= 1 ? "te+" : "te++";
+}
+
+/** Extra points a TE earns per catch above the league's base reception scoring. */
+export function teReceptionBonus(scoring: Record<string, number> | undefined): number {
+  if (!scoring) return 0;
+  const explicit = scoring.bonus_rec_te;
+  if (typeof explicit === "number" && explicit > 0) return explicit;
+  const rec = scoring.rec ?? 0;
+  const recTe = scoring.rec_te;
+  if (typeof recTe === "number" && recTe > rec) return recTe - rec;
+  return 0;
+}
+
 /** Sleeper settings.type: 0 = redraft, 1 = keeper, 2 = dynasty (3 = guillotine etc. treated as redraft). */
 export function detectValuesParams(league: SleeperLeague): ValuesParams {
   const type = league.settings?.type ?? 0;
@@ -117,5 +137,6 @@ export function detectValuesParams(league: SleeperLeague): ValuesParams {
     numQbs: superflex || qbSlots >= 2 ? 2 : 1,
     numTeams: league.total_rosters,
     ppr,
+    tep: tepFromBonus(teReceptionBonus(league.scoring_settings)),
   };
 }
