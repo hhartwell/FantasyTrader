@@ -75,6 +75,8 @@ export interface TeamOutcome {
   name: string;
   gives: RosterPlayer[];
   receives: RosterPlayer[];
+  /** Cut to waivers so the roster fits. Their value is included in the given totals. */
+  drops: RosterPlayer[];
   givenValue: number;
   receivedValue: number;
   givenAdjusted: number;
@@ -136,6 +138,37 @@ export function fetchLeague(id: string, overrides?: ValuesParams, source: ValueS
   }
   const search = q.toString();
   return request<LeagueResponse>(`/api/league/${id}${search ? `?${search}` : ""}`);
+}
+
+export interface VisitDay {
+  day: string;
+  uniques: number;
+}
+
+export interface VisitsResponse {
+  timezone: "UTC";
+  today: string;
+  days: VisitDay[];
+}
+
+export function fetchVisits() {
+  return request<VisitsResponse>("/api/admin/visits");
+}
+
+export function adminSession() {
+  return request<{ username: string }>("/api/admin/session");
+}
+
+export function adminLogin(username: string, password: string) {
+  return request<{ username: string }>("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function adminLogout() {
+  return request<{ ok: boolean }>("/api/admin/logout", { method: "POST" });
 }
 
 export function fetchTrades(body: {

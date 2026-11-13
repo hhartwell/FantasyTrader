@@ -14,6 +14,8 @@ export interface EnginePlayer {
   name: string;
   position: string;
   value: number;
+  /** Taxi or IR. Those spots are separate, and these players are not waiver drops. */
+  held?: "taxi" | "reserve";
 }
 
 export interface EngineTeam {
@@ -33,6 +35,8 @@ export interface TeamOutcome {
   name: string;
   gives: EnginePlayer[];
   receives: EnginePlayer[];
+  /** Cut to waivers so the roster fits. Their value is part of what this team gives up. */
+  drops: EnginePlayer[];
   givenValue: number;
   receivedValue: number;
   givenAdjusted: number;
@@ -114,11 +118,65 @@ interface SearchContext {
   unfilledBefore: Map<number, number>;
   tolerance: number;
   rosterPositions: string[];
+  /** Active roster spots. IR and taxi slots are not included. */
+  slots: number;
+  /** Players that may not be traded or cut. Keyed by roster id. */
+  protected: Map<number, ReadonlySet<string>>;
+}
+
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
+/** Bench, starter, and flex spots. IR and taxi are extra and are not waiver cuts. */
+export function activeRosterSlots(rosterPositions: string[]): number {
+  return rosterPositions.filter((slot) => slot !== "IR" && slot !== "TAXI").length;
+}
+
+function isActive(player: EnginePlayer): boolean {
+  return player.held == null;
+}
+
+function asActive(player: EnginePlayer): EnginePlayer {
+  if (player.held == null) return player;
+  return { id: player.id, name: player.name, position: player.position, value: player.value };
+}
+
+/**
+ * Who a team cuts when a trade leaves them over the active roster limit.
+ * Cuts the cheapest players that do not open another hole in the lineup.
+ * Returns null when the extra spots cannot be cleared legally.
+ * A team already over the limit only cuts the players this trade adds.
+ */
+export function chooseWaiverDrops(
+  roster: EnginePlayer[],
+  slots: number,
+  beforeActive: number,
+  rosterPositions: string[],
+  protectedIds: ReadonlySet<string>,
+): EnginePlayer[] | null {
+  const active = roster.filter(isActive);
+  const needed = Math.max(0, active.length - Math.max(beforeActive, slots));
+  if (needed === 0) return [];
+  const candidates = active
+    .filter((player) => !protectedIds.has(player.id))
+    .sort((a, b) => a.value - b.value || a.id.localeCompare(b.id));
+  const drops: EnginePlayer[] = [];
+  let current = roster;
+  for (const player of candidates) {
+    if (drops.length >= needed) break;
+    const next = current.filter((p) => p.id !== player.id);
+    if (unfilledStarterSlots(next, rosterPositions) > unfilledStarterSlots(current, rosterPositions)) continue;
+    drops.push(player);
+    current = next;
+  }
+  return drops.length === needed ? drops : null;
 }
 
 function rosterAfter(team: EngineTeam, legs: TradeLeg[]): EnginePlayer[] {
   const out = new Set(legs.filter((l) => l.from === team.rosterId).flatMap((l) => l.players.map((p) => p.id)));
-  const incoming = legs.filter((l) => l.to === team.rosterId).flatMap((l) => l.players);
+  const incoming = legs
+    .filter((l) => l.to === team.rosterId)
+    .flatMap((l) => l.players)
+    .map(asActive);
   return [...team.players.filter((p) => !out.has(p.id)), ...incoming];
 }
 
@@ -137,13 +195,25 @@ export function evaluateTrade(legs: TradeLeg[], ctx: SearchContext, mode: 2 | 3)
       receives.map((p) => p.value),
       gives.map((p) => p.value),
     );
+    const beforeActive = team.players.filter(isActive).length;
+    const afterTrade = rosterAfter(team, legs);
+    const drops = chooseWaiverDrops(
+      afterTrade,
+      ctx.slots,
+      beforeActive,
+      ctx.rosterPositions,
+      ctx.protected.get(rosterId) ?? EMPTY_IDS,
+    );
+    if (!drops) return null;
+    const dropIds = new Set(drops.map((p) => p.id));
+    const dropValue = sum(drops.map((p) => p.value));
+    const after = afterTrade.filter((p) => !dropIds.has(p.id));
     const receivedAdjusted = cmp.a;
-    const givenAdjusted = cmp.b;
+    const givenAdjusted = cmp.b + dropValue;
     if (givenAdjusted > 0 && receivedAdjusted < givenAdjusted * (1 - ctx.tolerance)) return null;
     const imbalance = givenAdjusted > 0 ? Math.max(0, (givenAdjusted - receivedAdjusted) / givenAdjusted) : 0;
     maxImbalance = Math.max(maxImbalance, imbalance);
 
-    const after = rosterAfter(team, legs);
     if (unfilledStarterSlots(after, ctx.rosterPositions) > ctx.unfilledBefore.get(rosterId)!) return null;
 
     const before = ctx.profiles.get(rosterId)!;
@@ -164,7 +234,8 @@ export function evaluateTrade(legs: TradeLeg[], ctx: SearchContext, mode: 2 | 3)
       name: team.name,
       gives,
       receives,
-      givenValue: sum(gives.map((p) => p.value)),
+      drops,
+      givenValue: sum(gives.map((p) => p.value)) + dropValue,
       receivedValue: sum(receives.map((p) => p.value)),
       givenAdjusted: Math.round(givenAdjusted),
       receivedAdjusted: Math.round(receivedAdjusted),
@@ -175,13 +246,20 @@ export function evaluateTrade(legs: TradeLeg[], ctx: SearchContext, mode: 2 | 3)
     });
   }
 
-  const disruption = legs.reduce((n, l) => n + l.players.length, 0);
+  const disruption =
+    legs.reduce((n, l) => n + l.players.length, 0) + outcomes.reduce((n, team) => n + team.drops.length, 0);
   const fairness = ctx.tolerance > 0 ? 1 - maxImbalance / ctx.tolerance : 1;
   const score = fairness + 0.35 * clamp(fitScore, -2, 3) - 0.05 * disruption;
-  const id = legs
+  const legsId = legs
     .map((l) => `${l.from}>${l.to}:${l.players.map((p) => p.id).sort().join(",")}`)
     .sort()
     .join("|");
+  const dropId = outcomes
+    .filter((team) => team.drops.length > 0)
+    .map((team) => `drop${team.rosterId}:${team.drops.map((p) => p.id).sort().join(",")}`)
+    .sort()
+    .join("|");
+  const id = dropId ? `${legsId}|${dropId}` : legsId;
   return {
     id,
     mode,
@@ -390,6 +468,8 @@ export function suggestTrades(req: TradeRequest): TradeResponse {
     profiles,
     tolerance: req.tolerance,
     rosterPositions: req.rosterPositions,
+    slots: activeRosterSlots(req.rosterPositions),
+    protected: new Map([[me.rosterId, excluded]]),
     unfilledBefore: new Map(req.teams.map((t) => [t.rosterId, unfilledStarterSlots(t.players, req.rosterPositions)])),
   };
 
@@ -442,8 +522,8 @@ export function suggestTrades(req: TradeRequest): TradeResponse {
   if (byOwner.size > 0 && all.length === 0) {
     warnings.push(
       req.mode === 3
-        ? "No 3-team trade fits the tolerance and complementary needs. Try a wider tolerance or a 2-team search."
-        : "No trade fits the tolerance without breaking a starting lineup. Try a wider tolerance.",
+        ? "No 3-team trade fits the tolerance and complementary needs. A roster that would end up over the limit has to drop the extra players to waivers, and that lost value counts. Try a wider tolerance or a 2-team search."
+        : "No trade fits the tolerance without breaking a starting lineup. A roster that would end up over the limit has to drop the extra players to waivers, and that lost value counts. Try a wider tolerance.",
     );
   }
   return { suggestions: all, profiles: [...profiles.values()], warnings };

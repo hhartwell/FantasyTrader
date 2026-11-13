@@ -1,0 +1,39 @@
+# AutoFantasyTrade
+
+> Fair 2-team and 3-team trades for your Sleeper league.
+
+AutoFantasyTrade (https://autofantasytrade.com/) is a free web app that suggests fair fantasy football trades for a Sleeper league. You do not create an account. Enter a Sleeper username, pick the players you want, and review trades that stay inside a fairness tolerance and fit each roster's positional needs.
+
+Player values come from Sleeper ADP or Yahoo's overall rank. Each rank is converted into a trade value in the app. Rankings are saved as snapshots.
+
+## How it works
+
+1. Enter your Sleeper username and open a league.
+2. Pick the players you want, and tap Keep on anyone who should stay off the trade block.
+3. Review trade ideas that stay within your fairness tolerance and fill positional needs.
+
+## FAQ
+
+### Which leagues does AutoFantasyTrade support?
+
+AutoFantasyTrade works with Sleeper fantasy football leagues. Enter a Sleeper username and choose a league from the list. Redraft and dynasty leagues are both supported, including 1QB and superflex.
+
+### Where do player values come from?
+
+Player values come from Sleeper ADP or Yahoo's overall rank. Each rank is converted into a trade value in the app. Those rankings are saved as snapshots, so a search does not request them again every time.
+
+### What makes a trade fair?
+
+A trade is fair when every team stays inside the fairness tolerance you set. The comparison adds a premium when one side consolidates several players into a single star, so one high-value player can outweigh a package of depth pieces. You can widen or tighten that tolerance before you search.
+
+### How do 3-team trades work?
+
+A 3-team trade brings in a third roster when two teams alone cannot make a fair deal that also fills positional needs. You still receive the players you targeted. The third team sends players where a roster is thin and receives players where it has a surplus.
+
+### Can I keep players off the trade block?
+
+Yes. On your roster, tap Keep next to any player you do not want to trade. Kept players still count toward your lineup and positional needs, and the search will not offer them. Tap Kept to put a player back on the trade block.
+
+### Is AutoFantasyTrade free, and do I need an account?
+
+AutoFantasyTrade is free, and you do not create an account. The only thing you enter is a Sleeper username so the site can load that person's leagues.

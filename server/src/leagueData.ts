@@ -11,6 +11,8 @@ export interface RosterPlayer {
   team: string | null;
   age: number | null;
   value: number;
+  /** Taxi or IR. Omitted for players who count against the active roster. */
+  held?: "taxi" | "reserve";
 }
 
 export interface LeagueTeam {
@@ -68,9 +70,12 @@ export async function loadLeagueBundle(
 
   const teams: LeagueTeam[] = rosters.map((r) => {
     const owner = r.owner_id ? usersById.get(r.owner_id) : undefined;
+    const taxi = new Set(r.taxi ?? []);
+    const reserve = new Set(r.reserve ?? []);
     const players: RosterPlayer[] = (r.players ?? []).map((id) => {
       const v = values.values.get(id);
       const db = playersDb[id];
+      const held = taxi.has(id) ? ("taxi" as const) : reserve.has(id) ? ("reserve" as const) : undefined;
       return {
         id,
         name: v?.name ?? db?.name ?? id,
@@ -78,6 +83,7 @@ export async function loadLeagueBundle(
         team: v?.team ?? db?.team ?? null,
         age: v?.age ?? db?.age ?? null,
         value: v?.value ?? 0,
+        ...(held ? { held } : {}),
       };
     });
     players.sort((a, b) => b.value - a.value);

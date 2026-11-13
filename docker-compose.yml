@@ -30,5 +30,6 @@ services:
       - ./client/src:/app/client/src
       - ./client/index.html:/app/client/index.html
       - ./client/vite.config.ts:/app/client/vite.config.ts
+      - ./client/public:/app/client/public
     depends_on:
       - server

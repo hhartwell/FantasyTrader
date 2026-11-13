@@ -1,6 +1,18 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
-import { VALUES_DIR, SLEEPER_RANKINGS_FILE, YAHOO_RANKINGS_FILE, fantasyCalcEnabled } from "./config.js";
+import {
+  ADMIN_COOKIE,
+  adminConfigFromEnv,
+  clearSessionCookie,
+  credentialsMatch,
+  issueSession,
+  readCookie,
+  readSession,
+  sessionCookie,
+  type AdminConfig,
+} from "./admin.js";
+import { VALUES_DIR, SLEEPER_RANKINGS_FILE, YAHOO_RANKINGS_FILE, VISITS_FILE, fantasyCalcEnabled } from "./config.js";
+import { VisitError, VisitStore } from "./visits.js";
 import { loadLeagueBundle, NoValuesError, valuesMeta } from "./leagueData.js";
 import { detectValuesParams, SleeperClient, SleeperError } from "./sleeper.js";
 import { buildNeedsContext, leagueProfiles } from "./positionalNeeds.js";
@@ -13,6 +25,9 @@ import { parseValueSource, type ValueSourceId } from "./values/valueSource.js";
 export interface AppDeps {
   sleeper?: SleeperClient;
   provider?: ValuesProvider;
+  visits?: VisitStore;
+  /** `null` closes admin login. Omit to read `ADMIN_PASSWORD` from the environment. */
+  admin?: AdminConfig | null;
 }
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -37,11 +52,56 @@ export function createApp(deps: AppDeps = {}) {
     return fantasyCalc;
   };
 
+  const visits = deps.visits ?? new VisitStore(VISITS_FILE);
+  const admin = deps.admin === undefined ? adminConfigFromEnv() : deps.admin;
+
+  const adminUser = (req: Request): string | null => {
+    if (!admin) return null;
+    const token = readCookie(req.headers.cookie, ADMIN_COOKIE);
+    if (!token) return null;
+    return readSession(token, admin);
+  };
+
   const app = express();
   app.use(cors());
   app.use(express.json());
 
   app.get("/api/health", (_req, res) => res.json({ ok: true, fantasyCalcEnabled }));
+
+  app.post("/api/admin/login", (req, res) => {
+    if (!admin) return res.status(503).json({ error: "Admin login is not configured" });
+    const username = String(req.body?.username ?? "");
+    const password = String(req.body?.password ?? "");
+    if (!credentialsMatch(admin, username, password)) {
+      return res.status(401).json({ error: "Please enter the correct username and password." });
+    }
+    res.setHeader("Set-Cookie", sessionCookie(issueSession(admin)));
+    res.json({ username: admin.username });
+  });
+
+  app.post("/api/admin/logout", (_req, res) => {
+    res.setHeader("Set-Cookie", clearSessionCookie());
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/session", (req, res) => {
+    const username = adminUser(req);
+    if (!username) return res.status(401).json({ error: "Admin login required" });
+    res.json({ username });
+  });
+
+  app.get("/api/admin/visits", (req, res) => {
+    if (!adminUser(req)) return res.status(401).json({ error: "Admin login required" });
+    res.json(visits.report());
+  });
+
+  app.post(
+    "/api/visits",
+    wrap(async (req, res) => {
+      const visitorId = String(req.body?.visitorId ?? "");
+      res.json(visits.record(visitorId));
+    }),
+  );
 
   app.get("/api/values/status", (_req, res) => {
     res.json({
@@ -140,6 +200,7 @@ export function createApp(deps: AppDeps = {}) {
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof SleeperError) return res.status(err.status).json({ error: err.message });
     if (err instanceof NoValuesError) return res.status(503).json({ error: err.message });
+    if (err instanceof VisitError) return res.status(400).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: (err as Error).message ?? "Internal error" });
   });

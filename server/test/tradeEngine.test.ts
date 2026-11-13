@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildNeedsContext, leagueProfiles } from "../src/positionalNeeds.js";
-import { combinations, compareSides, suggestTrades } from "../src/tradeEngine.js";
+import { chooseWaiverDrops, combinations, compareSides, suggestTrades, type EnginePlayer, type EngineTeam } from "../src/tradeEngine.js";
 import { fixtureLeague, ROSTER_POSITIONS } from "./fixtures.js";
 
 describe("compareSides (consolidation adjustment)", () => {
@@ -51,6 +51,7 @@ describe("suggestTrades: 2-team", () => {
       expect(s.mode).toBe(2);
       const me = s.teams.find((t) => t.rosterId === 1)!;
       expect(me.receives.map((p) => p.id)).toContain(star.id);
+      for (const team of s.teams) expect(team.drops).toEqual([]);
     }
     const scores = res.suggestions.map((s) => s.score);
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
@@ -225,6 +226,192 @@ describe("suggestTrades: 3-team", () => {
     expect(Math.max(...counts.values())).toBeLessThanOrEqual(2);
   });
 });
+
+const FULL: string[] = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "BN"];
+
+const player = (id: string, position: string, value: number, held?: EnginePlayer["held"]): EnginePlayer => ({
+  id,
+  name: id,
+  position,
+  value,
+  ...(held ? { held } : {}),
+});
+
+describe("waiver drops", () => {
+  const spots = FULL;
+
+  it("cuts the cheapest player that still leaves a starting lineup", () => {
+    const roster = [
+      player("qb", "QB", 4000),
+      player("rb1", "RB", 3000),
+      player("rb2", "RB", 2500),
+      player("wr1", "WR", 3000),
+      player("wr2", "WR", 2500),
+      player("te", "TE", 50),
+      player("wr3", "WR", 2000),
+      player("flex", "WR", 1500),
+      player("scrub", "WR", 100),
+    ];
+    expect(chooseWaiverDrops(roster, 8, 8, spots, new Set())?.map((p) => p.id)).toEqual(["scrub"]);
+  });
+
+  it("will not cut a kept player, a taxi player, or the last starter at a position", () => {
+    const roster = [
+      player("qb", "QB", 4000),
+      player("rb1", "RB", 3000),
+      player("rb2", "RB", 2500),
+      player("wr1", "WR", 3000),
+      player("wr2", "WR", 2500),
+      player("te", "TE", 50),
+      player("wr3", "WR", 2000),
+      player("flex", "WR", 1500),
+      player("scrub", "WR", 100),
+      player("taxi", "WR", 1, "taxi"),
+    ];
+    expect(chooseWaiverDrops(roster, 8, 8, spots, new Set(["scrub"]))?.map((p) => p.id)).toEqual(["flex"]);
+    expect(chooseWaiverDrops(roster, 8, 8, spots, new Set(["scrub", "flex", "wr3", "wr2", "wr1"]))).toBeNull();
+  });
+
+  it("does not cut just to repair a roster that was already over the limit", () => {
+    const roster = [player("qb", "QB", 4000), player("rb", "RB", 3000)];
+    expect(chooseWaiverDrops(roster, 1, 2, ["QB"], new Set())).toEqual([]);
+  });
+
+  it("charges the dropped player's value to the team that has to clear a spot", () => {
+    const { teams, payA, payB, star, scrub } = fullLeague(100);
+    const res = suggestTrades({
+      teams,
+      rosterPositions: FULL,
+      myRosterId: 1,
+      targetPlayerIds: [star.id],
+      excludedPlayerIds: teams[0].players.filter((p) => p.id !== payA.id && p.id !== payB.id).map((p) => p.id),
+      mode: 2,
+      tolerance: 0.1,
+      limit: 20,
+    });
+    expect(res.suggestions.length).toBeGreaterThan(0);
+    for (const suggestion of res.suggestions) {
+      const partner = suggestion.teams.find((t) => t.rosterId === 2)!;
+      expect(partner.drops.map((p) => p.id)).toEqual([scrub.id]);
+      expect(partner.givenValue).toBe(star.value + scrub.value);
+      expect(suggestion.teams.find((t) => t.rosterId === 1)!.drops).toEqual([]);
+    }
+  });
+
+  it("rejects the trade when the drop is too valuable, and allows it when a bench spot is open", () => {
+    const tight = suggestTrades({
+      ...fullRequest(fullLeague(2000), FULL),
+    });
+    expect(tight.suggestions).toHaveLength(0);
+    expect(tight.warnings.some((w) => /waivers/.test(w))).toBe(true);
+
+    const open = suggestTrades({
+      ...fullRequest(fullLeague(2000), [...FULL, "BN"]),
+    });
+    expect(open.suggestions.length).toBeGreaterThan(0);
+    expect(open.suggestions[0].teams.find((t) => t.rosterId === 2)!.drops).toEqual([]);
+  });
+
+  it("drops the next-cheapest player when the cheapest one is kept", () => {
+    const me: EngineTeam = {
+      rosterId: 1,
+      name: "Me",
+      players: [
+        player("qb", "QB", 4000),
+        player("rb1", "RB", 3000),
+        player("rb2", "RB", 2800),
+        player("pay", "WR", 6000),
+        player("wr", "WR", 4000),
+        player("te", "TE", 2500),
+        player("scrub", "WR", 50),
+        player("cheap", "WR", 80),
+      ],
+    };
+    const star = player("star", "RB", 5000);
+    const addon = player("addon", "WR", 1000);
+    const partner: EngineTeam = {
+      rosterId: 2,
+      name: "B",
+      players: [
+        player("bqb", "QB", 4000),
+        star,
+        player("brb1", "RB", 3000),
+        player("brb2", "RB", 2000),
+        player("bwr1", "WR", 3000),
+        player("bwr2", "WR", 2800),
+        player("bte", "TE", 2500),
+        addon,
+      ],
+    };
+    const res = suggestTrades({
+      teams: [me, partner],
+      rosterPositions: FULL,
+      myRosterId: 1,
+      targetPlayerIds: [star.id],
+      excludedPlayerIds: ["qb", "rb1", "rb2", "wr", "te", "scrub"],
+      mode: 2,
+      tolerance: 0.1,
+      limit: 20,
+    });
+    const hit = res.suggestions.find((s) => {
+      const mine = s.teams.find((t) => t.rosterId === 1)!;
+      return mine.gives.length === 1 && mine.gives[0].id === "pay" && mine.receives.some((p) => p.id === "addon");
+    });
+    expect(hit).toBeDefined();
+    expect(hit!.teams.find((t) => t.rosterId === 1)!.drops.map((p) => p.id)).toEqual(["cheap"]);
+  });
+});
+
+function fullLeague(scrubValue: number) {
+  const payA = player("payA", "WR", 2500);
+  const payB = player("payB", "WR", 2500);
+  const star = player("star", "RB", 5000);
+  const scrub = player("scrub", "WR", scrubValue);
+  const me: EngineTeam = {
+    rosterId: 1,
+    name: "Me",
+    players: [
+      player("qb", "QB", 4000),
+      player("rb1", "RB", 3000),
+      player("rb2", "RB", 2800),
+      payA,
+      payB,
+      player("wrC", "WR", 4500),
+      player("wrD", "WR", 4000),
+      player("te", "TE", 2500),
+    ],
+  };
+  const partner: EngineTeam = {
+    rosterId: 2,
+    name: "B",
+    players: [
+      player("bqb", "QB", 4000),
+      star,
+      player("brb1", "RB", 3000),
+      player("brb2", "RB", 2000),
+      player("bwr1", "WR", 3000),
+      player("bwr2", "WR", 2800),
+      player("bte", "TE", 2500),
+      scrub,
+    ],
+  };
+  return { teams: [me, partner], payA, payB, star, scrub };
+}
+
+function fullRequest(league: ReturnType<typeof fullLeague>, rosterPositions: string[]) {
+  return {
+    teams: league.teams,
+    rosterPositions,
+    myRosterId: 1,
+    targetPlayerIds: [league.star.id],
+    excludedPlayerIds: league.teams[0].players
+      .filter((p) => p.id !== league.payA.id && p.id !== league.payB.id)
+      .map((p) => p.id),
+    mode: 2 as const,
+    tolerance: 0.1,
+    limit: 20,
+  };
+}
 
 describe("suggestTrades: warnings", () => {
   it("warns about targets already on my roster", () => {

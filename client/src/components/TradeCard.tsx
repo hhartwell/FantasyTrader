@@ -89,6 +89,11 @@ function TeamLeg({
         <p className="pt-1 text-xs text-slate-400">
           Gives: {team.gives.map((p) => p.name).join(", ")}
         </p>
+        {team.drops.length > 0 && (
+          <p className="text-xs text-amber-200/90">
+            Drops to waivers: {team.drops.map((p) => `${p.name} (${formatValue(p.value)})`).join(", ")}
+          </p>
+        )}
       </div>
 
       {team.filled.length > 0 && (
@@ -122,6 +127,12 @@ function TeamLeg({
         <dl className="space-y-1 border-t border-slate-800 pt-2 text-xs text-slate-300">
           <Row label="Received (raw / adjusted)" value={`${formatValue(team.receivedValue)} / ${formatValue(team.receivedAdjusted)}`} />
           <Row label="Given (raw / adjusted)" value={`${formatValue(team.givenValue)} / ${formatValue(team.givenAdjusted)}`} />
+          {team.drops.length > 0 && (
+            <Row
+              label="Waiver drops"
+              value={`${formatValue(team.drops.reduce((total, player) => total + player.value, 0))} lost`}
+            />
+          )}
           {premium && (
             <Row label="Consolidation premium" value={`+${formatValue(premium.amount)} on the side it ${premium.side}`} />
           )}

@@ -37,3 +37,4 @@ export const PLAYERS_FILE = path.join(DATA_DIR, "players", "nfl.json");
 export const RANKINGS_DIR = path.join(DATA_DIR, "rankings");
 export const SLEEPER_RANKINGS_FILE = path.join(RANKINGS_DIR, "sleeper-adp.json");
 export const YAHOO_RANKINGS_FILE = path.join(RANKINGS_DIR, "yahoo-overall.json");
+export const VISITS_FILE = path.join(DATA_DIR, "visits.json");

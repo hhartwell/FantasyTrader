@@ -15,6 +15,7 @@ import { LeagueTab } from "./components/LeagueTab";
 import { TargetsTab } from "./components/TargetsTab";
 import { TradesTab } from "./components/TradesTab";
 import { ValueSourceSelect } from "./components/ValueSourceSelect";
+import { recordVisit } from "./visits";
 
 const USERNAME_KEY = "fantasytrader.username";
 const KEPT_KEY = "fantasytrader.kept";
@@ -77,6 +78,15 @@ export default function App() {
       .catch((e: Error) => setLeaguesError(e.message))
       .finally(() => setLeaguesLoading(false));
   }, []);
+
+  useEffect(() => {
+    recordVisit();
+  }, []);
+
+  useEffect(() => {
+    const about = document.getElementById("about");
+    if (about) about.hidden = Boolean(leagueId);
+  }, [leagueId]);
 
   useEffect(() => {
     if (username) searchLeagues(username);
@@ -162,7 +172,7 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-5xl px-4 pt-4 pb-6">
       <header className="mb-4 flex items-baseline justify-between">
         <h1 className="text-xl font-bold tracking-tight">
-          Fantasy<span className="text-sky-400">Trader</span>
+          AutoFantasy<span className="text-sky-400">Trade</span>
         </h1>
         {league && <span className="max-w-[55%] truncate text-xs text-slate-400">{league.league.name}</span>}
       </header>

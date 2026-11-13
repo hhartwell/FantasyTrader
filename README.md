@@ -29,6 +29,8 @@ Without Docker: `npm run dev` (server on 3001, Vite on 5173 with `/api` proxied)
 
 Tests: `npm test` (Vitest, no network). Typecheck: `npm run typecheck`.
 
+Admin is at `/admin` (http://localhost:5173/admin), separate from the app. Set `ADMIN_PASSWORD` in `.env` (`ADMIN_USERNAME` defaults to `admin`). Visit counts require that login. The main app does not link to it.
+
 ## Layout
 
 - `server/src/sleeper.ts`: Sleeper client with a 5-minute in-memory cache

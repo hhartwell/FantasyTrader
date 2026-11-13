@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#020617"/>
+  <rect x="72" y="171" width="288" height="288" rx="48" fill="#0f172a"/>
+  <path d="M126 291h126M220 249l48 42-48 42" stroke="#38bdf8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M306 381H180M220 339l-48 42 48 42" stroke="#7dd3fc" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="408" y="292" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700">
+    <tspan fill="#f8fafc">AutoFantasy</tspan><tspan fill="#38bdf8">Trade</tspan>
+  </text>
+  <text x="408" y="360" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="32">Fair 2-team and 3-team trades</text>
+  <text x="408" y="408" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="32">for your Sleeper league</text>
+  <text x="408" y="488" fill="#64748b" font-family="Arial, Helvetica, sans-serif" font-size="24">autofantasytrade.com</text>
+</svg>

@@ -4,10 +4,145 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
-    <title>FantasyTrader</title>
+    <title>AutoFantasyTrade: fair trade finder for Sleeper fantasy football leagues</title>
+    <meta
+      name="description"
+      content="Enter your Sleeper username, pick players you want, and get fair 2-team and 3-team trade ideas that fit every roster's needs. Free, no sign-up."
+    />
+    <link rel="canonical" href="https://autofantasytrade.com/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AutoFantasyTrade" />
+    <meta property="og:url" content="https://autofantasytrade.com/" />
+    <meta property="og:title" content="AutoFantasyTrade: fair trade finder for Sleeper fantasy football leagues" />
+    <meta
+      property="og:description"
+      content="Enter your Sleeper username, pick players you want, and get fair 2-team and 3-team trade ideas that fit every roster's needs. Free, no sign-up."
+    />
+    <meta property="og:image" content="https://autofantasytrade.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="AutoFantasyTrade: fair 2-team and 3-team trades for your Sleeper league" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AutoFantasyTrade: fair trade finder for Sleeper fantasy football leagues" />
+    <meta
+      name="twitter:description"
+      content="Enter your Sleeper username, pick players you want, and get fair 2-team and 3-team trade ideas that fit every roster's needs. Free, no sign-up."
+    />
+    <meta name="twitter:image" content="https://autofantasytrade.com/og-image.png" />
+    <meta name="twitter:image:alt" content="AutoFantasyTrade: fair 2-team and 3-team trades for your Sleeper league" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "name": "AutoFantasyTrade",
+            "url": "https://autofantasytrade.com/",
+            "description": "Enter your Sleeper username, pick players you want, and get fair 2-team and 3-team trade ideas that fit every roster's needs. Free, no sign-up.",
+            "applicationCategory": "SportsApplication",
+            "operatingSystem": "Web",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Which leagues does AutoFantasyTrade support?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "AutoFantasyTrade works with Sleeper fantasy football leagues. Enter a Sleeper username and choose a league from the list. Redraft and dynasty leagues are both supported, including 1QB and superflex."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where do player values come from?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Player values come from Sleeper ADP or Yahoo's overall rank. Each rank is converted into a trade value in the app. Those rankings are saved as snapshots, so a search does not request them again every time."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What makes a trade fair?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A trade is fair when every team stays inside the fairness tolerance you set. The comparison adds a premium when one side consolidates several players into a single star, so one high-value player can outweigh a package of depth pieces. You can widen or tighten that tolerance before you search."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do 3-team trades work?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A 3-team trade brings in a third roster when two teams alone cannot make a fair deal that also fills positional needs. You still receive the players you targeted. The third team sends players where a roster is thin and receives players where it has a surplus."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I keep players off the trade block?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. On your roster, tap Keep next to any player you do not want to trade. Kept players still count toward your lineup and positional needs, and the search will not offer them. Tap Kept to put a player back on the trade block."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is AutoFantasyTrade free, and do I need an account?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "AutoFantasyTrade is free, and you do not create an account. The only thing you enter is a Sleeper username so the site can load that person's leagues."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100">
     <div id="root"></div>
+    <section id="about" style="max-width:64rem;margin:0 auto;padding:8px 16px 32px;color:#cbd5e1;font:16px/1.5 ui-sans-serif,system-ui,sans-serif">
+      <h2 style="color:#f8fafc;font-size:20px;margin:16px 0 8px">What is AutoFantasyTrade?</h2>
+      <p style="margin:0">
+        AutoFantasyTrade finds fair trades in your Sleeper fantasy football league. You enter a Sleeper username, choose the players you want, and the site suggests 2-team and 3-team trades that fit each roster's needs.
+      </p>
+      <h2 style="color:#f8fafc;font-size:20px;margin:24px 0 8px">How it works</h2>
+      <ol style="margin:0;padding-left:1.25rem">
+        <li>Enter your Sleeper username and open a league.</li>
+        <li>Pick the players you want, and tap Keep on anyone who should stay off the trade block.</li>
+        <li>Review trade ideas that stay within your fairness tolerance and fill positional needs.</li>
+      </ol>
+      <h2 style="color:#f8fafc;font-size:20px;margin:24px 0 8px">Questions</h2>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">Which leagues does AutoFantasyTrade support?</h3>
+      <p style="margin:0">
+        AutoFantasyTrade works with Sleeper fantasy football leagues. Enter a Sleeper username and choose a league from the list. Redraft and dynasty leagues are both supported, including 1QB and superflex.
+      </p>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">Where do player values come from?</h3>
+      <p style="margin:0">
+        Player values come from Sleeper ADP or Yahoo's overall rank. Each rank is converted into a trade value in the app. Those rankings are saved as snapshots, so a search does not request them again every time.
+      </p>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">What makes a trade fair?</h3>
+      <p style="margin:0">
+        A trade is fair when every team stays inside the fairness tolerance you set. The comparison adds a premium when one side consolidates several players into a single star, so one high-value player can outweigh a package of depth pieces. You can widen or tighten that tolerance before you search.
+      </p>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">How do 3-team trades work?</h3>
+      <p style="margin:0">
+        A 3-team trade brings in a third roster when two teams alone cannot make a fair deal that also fills positional needs. You still receive the players you targeted. The third team sends players where a roster is thin and receives players where it has a surplus.
+      </p>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">Can I keep players off the trade block?</h3>
+      <p style="margin:0">
+        Yes. On your roster, tap Keep next to any player you do not want to trade. Kept players still count toward your lineup and positional needs, and the search will not offer them. Tap Kept to put a player back on the trade block.
+      </p>
+      <h3 style="color:#f8fafc;font-size:16px;margin:16px 0 4px">Is AutoFantasyTrade free, and do I need an account?</h3>
+      <p style="margin:0">
+        AutoFantasyTrade is free, and you do not create an account. The only thing you enter is a Sleeper username so the site can load that person's leagues.
+      </p>
+    </section>
     <footer id="static-attribution" style="text-align:center;font-size:12px;padding:8px 8px 88px;color:#94a3b8">
       Player values from <a href="https://sleeper.com" target="_blank" rel="noopener" style="color:#7dd3fc">Sleeper</a> or
       <a href="https://football.fantasysports.yahoo.com" target="_blank" rel="noopener" style="color:#7dd3fc">Yahoo Fantasy</a>
