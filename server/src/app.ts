@@ -3,6 +3,7 @@ import cors from "cors";
 import { VALUES_DIR } from "./config.js";
 import { loadLeagueBundle, NoValuesError, valuesMeta } from "./leagueData.js";
 import { detectValuesParams, SleeperClient, SleeperError } from "./sleeper.js";
+import { suggestTrades } from "./tradeEngine.js";
 import { FantasyCalcSnapshotProvider } from "./values/fantasyCalcSnapshot.js";
 import type { ValuesProvider } from "./values/provider.js";
 
@@ -68,6 +69,36 @@ export function createApp(deps: AppDeps = {}) {
         values: valuesMeta(bundle.values),
         teams: bundle.teams,
       });
+    }),
+  );
+
+  app.post(
+    "/api/trades",
+    wrap(async (req, res) => {
+      const body = req.body ?? {};
+      const leagueId = String(body.leagueId ?? "");
+      const myRosterId = Number(body.myRosterId);
+      const targetPlayerIds: string[] = Array.isArray(body.targetPlayerIds) ? body.targetPlayerIds.map(String) : [];
+      const mode = Number(body.mode) === 3 ? 3 : 2;
+      let tolerance = Number(body.tolerance ?? 0.1);
+      if (tolerance > 1) tolerance /= 100;
+      if (!leagueId || !Number.isFinite(myRosterId) || targetPlayerIds.length === 0) {
+        return res.status(400).json({ error: "leagueId, myRosterId, and targetPlayerIds are required" });
+      }
+      if (!(tolerance > 0 && tolerance <= 0.3)) {
+        return res.status(400).json({ error: "tolerance must be between 0 and 0.3 (30%)" });
+      }
+      const bundle = await loadLeagueBundle(sleeper, provider, leagueId, body.values ?? {});
+      const result = suggestTrades({
+        teams: bundle.teams.map((t) => ({ rosterId: t.rosterId, name: t.teamName, players: t.players })),
+        rosterPositions: bundle.league.roster_positions,
+        myRosterId,
+        targetPlayerIds,
+        mode,
+        tolerance,
+        limit: 10,
+      });
+      res.json({ values: valuesMeta(bundle.values), mode, tolerance, ...result });
     }),
   );
 
