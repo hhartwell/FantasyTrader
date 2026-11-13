@@ -1,7 +1,6 @@
 import { useState, type FormEvent, type SelectHTMLAttributes } from "react";
 import type { LeagueResponse, LeaguesResponse, ValuesParams } from "../api";
 import { avatarUrl, formatValue, settingsLabel, timeAgo } from "../lib/format";
-import { LeagueBreakdown } from "./LeagueBreakdown";
 import { ValuesAttribution } from "./ValuesAttribution";
 import { NeedsChips } from "./NeedsChips";
 import { Card, ErrorNote, PlayerRow, Spinner } from "./ui";
@@ -266,7 +265,6 @@ function LeagueDetails({
           </div>
         </Card>
       )}
-      {me && <LeagueBreakdown teams={league.teams} rosterId={me.rosterId} />}
     </div>
   );
 }

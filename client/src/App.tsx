@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { fantasyCalcEnabled } from "./config";
 import { BottomNav, type Tab } from "./components/BottomNav";
+import { LeagueBreakdown } from "./components/LeagueBreakdown";
 import { LeagueTab } from "./components/LeagueTab";
 import { TargetsTab } from "./components/TargetsTab";
 import { TradesTab } from "./components/TradesTab";
@@ -82,11 +83,6 @@ export default function App() {
   useEffect(() => {
     recordVisit();
   }, []);
-
-  useEffect(() => {
-    const about = document.getElementById("about");
-    if (about) about.hidden = Boolean(leagueId);
-  }, [leagueId]);
 
   useEffect(() => {
     if (username) searchLeagues(username);
@@ -206,6 +202,9 @@ export default function App() {
             }}
           />
         )}
+        {tab === "compare" && league && myRosterId != null && (
+          <LeagueBreakdown teams={league.teams} rosterId={myRosterId} />
+        )}
         {tab === "targets" && league && myRosterId != null && (
           <TargetsTab
             league={league}
@@ -240,7 +239,7 @@ export default function App() {
       <BottomNav
         tab={tab}
         onTab={setTab}
-        enabled={{ league: true, targets: ready, trades: ready }}
+        enabled={{ league: true, compare: ready, targets: ready, trades: ready }}
         badges={{ targets: targets.length, trades: trades?.suggestions.length }}
       />
     </div>

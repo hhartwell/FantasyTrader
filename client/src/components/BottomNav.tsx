@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type Tab = "league" | "targets" | "trades";
+export type Tab = "league" | "compare" | "targets" | "trades";
 
 const icon = (d: ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -13,6 +13,11 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
     id: "league",
     label: "League",
     icon: icon(<path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h10" />),
+  },
+  {
+    id: "compare",
+    label: "Compare",
+    icon: icon(<path strokeLinecap="round" d="M5 19V10M10 19V5M15 19v-7M20 19V8" />),
   },
   {
     id: "targets",

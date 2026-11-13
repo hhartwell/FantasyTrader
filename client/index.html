@@ -103,10 +103,46 @@
         ]
       }
     </script>
+    <style>
+      html,
+      body {
+        background: #020617;
+      }
+      body {
+        margin: 0;
+      }
+      #boot {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font: 14px/1.4 ui-sans-serif, system-ui, sans-serif;
+        color: #94a3b8;
+      }
+      #boot .spin {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #475569;
+        border-top-color: #38bdf8;
+        border-radius: 9999px;
+        animation: boot-spin 0.7s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body class="bg-slate-950 text-slate-100">
-    <div id="root"></div>
-    <section id="about" style="max-width:64rem;margin:0 auto;padding:8px 16px 32px;color:#cbd5e1;font:16px/1.5 ui-sans-serif,system-ui,sans-serif">
+    <div id="root">
+      <div id="boot" role="status">
+        <span class="spin" aria-hidden="true"></span>
+        Loading
+      </div>
+    </div>
+    <section id="about" hidden style="max-width:64rem;margin:0 auto;padding:8px 16px 32px;color:#cbd5e1;font:16px/1.5 ui-sans-serif,system-ui,sans-serif">
       <h2 style="color:#f8fafc;font-size:20px;margin:16px 0 8px">What is AutoFantasyTrade?</h2>
       <p style="margin:0">
         AutoFantasyTrade finds fair trades in your Sleeper fantasy football league. You enter a Sleeper username, choose the players you want, and the site suggests 2-team and 3-team trades that fit each roster's needs.

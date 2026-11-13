@@ -1,7 +1,8 @@
-import type { LeagueTeam } from "../api";
+import { useState } from "react";
+import type { LeagueTeam, RosterPlayer } from "../api";
 import { formatPct, formatValue } from "../lib/format";
 import { leagueComparison, ordinal, type PositionComparison } from "../lib/leagueBreakdown";
-import { Card, PositionBadge } from "./ui";
+import { Card, PlayerRow, PositionBadge } from "./ui";
 
 function versusLabel(delta: number | null): string {
   if (delta == null) return "The rest of the league has no value here yet";
@@ -43,44 +44,92 @@ function PositionRow({ row }: { row: PositionComparison }) {
   );
 }
 
+const ROSTER_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF", "DST"];
+
+function rosterPlayers(team: LeagueTeam): RosterPlayer[] {
+  return team.players
+    .filter((player) => ROSTER_POSITIONS.includes(player.position))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+}
+
 export function LeagueBreakdown({ teams, rosterId }: { teams: LeagueTeam[]; rosterId: number }) {
   const comparison = leagueComparison(teams, rosterId);
+  const [open, setOpen] = useState<Set<number>>(() => new Set([rosterId]));
   if (!comparison) return null;
+  const byId = new Map(teams.map((team) => [team.rosterId, team]));
+  const toggle = (id: number) => {
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   return (
-    <Card className="space-y-4 md:col-span-2">
-      <div>
-        <h3 className="font-semibold">League comparison</h3>
-        <p className="mt-1 text-sm text-slate-300">
-          {ordinal(comparison.rank)} of {comparison.teamCount} in roster value · {versusLabel(comparison.versusRest)}
-        </p>
-        <p className="mt-1 text-xs text-slate-500">Bars are your value. The mark is the average of the other teams.</p>
-      </div>
-      <ul className="space-y-3">
-        {comparison.positions.map((row) => (
-          <PositionRow key={row.position} row={row} />
-        ))}
-      </ul>
-      <div>
-        <h4 className="mb-1 text-sm font-semibold text-slate-200">Every team</h4>
-        <ol className="divide-y divide-slate-800">
+    <div className="space-y-4">
+      <Card className="space-y-4">
+        <div>
+          <h2 className="font-semibold">League comparison</h2>
+          <p className="mt-1 text-sm text-slate-300">
+            {ordinal(comparison.rank)} of {comparison.teamCount} in roster value · {versusLabel(comparison.versusRest)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Bars are your value. The mark is the average of the other teams.</p>
+        </div>
+        <ul className="space-y-3">
+          {comparison.positions.map((row) => (
+            <PositionRow key={row.position} row={row} />
+          ))}
+        </ul>
+      </Card>
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-slate-200">Every team</h3>
+        <p className="mb-2 text-xs text-slate-500">Tap a team to see its players.</p>
+        <ul className="divide-y divide-slate-800">
           {comparison.standings.map((row) => {
             const mine = row.rosterId === rosterId;
+            const expanded = open.has(row.rosterId);
+            const players = rosterPlayers(byId.get(row.rosterId)!);
             return (
-              <li
-                key={row.rosterId}
-                className={`flex items-baseline justify-between gap-3 py-2 text-sm ${mine ? "text-sky-200" : "text-slate-300"}`}
-              >
-                <span className="min-w-0 truncate">
-                  <span className="mr-2 tabular-nums text-slate-500">{row.rank}</span>
-                  {row.name}
-                  {mine ? <span className="ml-2 text-xs text-sky-400">You</span> : null}
-                </span>
-                <span className="shrink-0 tabular-nums">{formatValue(row.total)}</span>
+              <li key={row.rosterId}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => toggle(row.rosterId)}
+                  className={`flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left text-sm ${
+                    mine ? "text-sky-200" : "text-slate-300"
+                  }`}
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="mr-2 tabular-nums text-slate-500">{row.rank}</span>
+                    {row.name}
+                    {mine ? <span className="ml-2 text-xs text-sky-400">You</span> : null}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="tabular-nums">{formatValue(row.total)}</span>
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden
+                      className={`h-4 w-4 text-slate-400 transition ${expanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+                    </svg>
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="divide-y divide-slate-800 pb-2 pl-1">
+                    {players.map((player) => (
+                      <PlayerRow key={player.id} player={player} />
+                    ))}
+                  </div>
+                )}
               </li>
             );
           })}
-        </ol>
-      </div>
-    </Card>
+        </ul>
+      </Card>
+    </div>
   );
 }
