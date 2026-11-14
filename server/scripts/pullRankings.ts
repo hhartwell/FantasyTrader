@@ -20,6 +20,8 @@ import { matchSleeperPlayer, UNRANKED_ADP, type SleeperAdp } from "../src/values
 const MIN_REFETCH_MS = 6 * 60 * 60 * 1000;
 const YAHOO_PAGE = 25;
 const YAHOO_MAX_RANK = 300;
+/** Yahoo publishes no numeric Fantasy Sports limit and throttles short bursts. */
+const YAHOO_PAGE_DELAY_MS = 1000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function parseArgs(argv: string[]): Record<string, string> {
@@ -143,7 +145,7 @@ async function pullYahoo(season: string): Promise<RankingSnapshot> {
   const players: RankingPlayer[] = [];
   let unmatched = 0;
   for (let start = 0; start <= 450; start += YAHOO_PAGE) {
-    if (start > 0) await sleep(250);
+    if (start > 0) await sleep(YAHOO_PAGE_DELAY_MS);
     const url = `https://pub-api-ro.fantasysports.yahoo.com/fantasy/v2/game/${gameKey}/players;position=O;sort=OR;out=ranks;start=${start};count=${YAHOO_PAGE}?format=json`;
     console.log(`fetch Yahoo ranks start=${start}`);
     const res = await fetch(url, { headers: { Accept: "application/json" } });

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "data:pull-values": "tsx scripts/pullValues.ts",
     "data:pull-players": "tsx scripts/pullPlayers.ts",
-    "data:pull-rankings": "tsx scripts/pullRankings.ts"
+    "data:pull-rankings": "tsx scripts/pullRankings.ts",
+    "data:schedule": "tsx scripts/schedulePulls.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -8,16 +8,22 @@ Private development proof of concept.
 ## Run
 
 ```bash
-# 1. Pull data by hand (the app never calls FantasyCalc at runtime)
 npm install
+docker compose up --build        # client http://localhost:5173, API http://localhost:3001
+```
+
+`docker compose up` also starts an hourly pull beat in its own process. The API only reads the snapshots that beat writes, and it never calls FantasyCalc. Each tick pulls Sleeper players and the Sleeper/Yahoo rankings. FantasyCalc values are included only when `FANTASYCALC_ENABLED=true` in `.env` (it defaults to false). The scripts still skip a refetch that is inside the source window: Sleeper players 24 hours, rankings 6 hours, and each FantasyCalc combo 3 hours.
+
+Without Docker, start the same beat with `npm run data:schedule`.
+
+Pull by hand when you want a snapshot now:
+
+```bash
 npm run data:pull-players                                   # Sleeper players DB, max once a day
 npm run data:pull-values -- --dynasty=true --qbs=1 --teams=12 --ppr=0.5   # one combo
 npm run data:pull-values                                    # 36 combos, no TE premium
 npm run data:pull-values -- --tep=te+                       # TE+ board (te++ or all also work)
 npm run data:pull-rankings                                  # Sleeper ADP and Yahoo overall rank
-
-# 2. Start everything
-docker compose up --build        # client http://localhost:5173, API http://localhost:3001
 ```
 
 Pull from inside Docker instead: `docker compose run --rm server npm run data:pull-values -- --qbs=1`.
@@ -37,6 +43,6 @@ Admin is at `/admin` (http://localhost:5173/admin), separate from the app. Set `
 - `server/src/values/`: `ValuesProvider` interface, FantasyCalc snapshots, and Sleeper/Yahoo ranking snapshots
 - `server/src/positionalNeeds.ts`: per-team surplus and deficit by position
 - `server/src/tradeEngine.ts`: package valuation, 2-team search, needs-driven 3-team search
-- `server/scripts/`: manual pull scripts
+- `server/scripts/`: hourly pull beat and the manual pull scripts it runs
 - `client/`: Vite + React + Tailwind, mobile-first
 

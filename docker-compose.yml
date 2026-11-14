@@ -33,3 +33,17 @@ services:
       - ./client/public:/app/client/public
     depends_on:
       - server
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    command: npm run data:schedule
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      - ./server/src:/app/server/src
+      - ./server/scripts:/app/server/scripts
+      - ./data:/app/data
