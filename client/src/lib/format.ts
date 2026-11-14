@@ -45,5 +45,7 @@ export const POSITION_STYLES: Record<string, string> = {
 };
 
 export function avatarUrl(avatar: string | null): string | null {
-  return avatar ? `https://sleepercdn.com/avatars/thumbs/${avatar}` : null;
+  if (!avatar) return null;
+  if (/^https?:\/\//i.test(avatar)) return avatar;
+  return `https://sleepercdn.com/avatars/thumbs/${avatar}`;
 }

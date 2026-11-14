@@ -37,6 +37,7 @@ async function main() {
       team: (p.team as string) ?? null,
       age: (p.age as number) ?? null,
       yahooId: p.yahoo_id == null || p.yahoo_id === "" ? null : String(p.yahoo_id),
+      espnId: p.espn_id == null || p.espn_id === "" ? null : String(p.espn_id),
     };
   }
   await fs.mkdir(path.dirname(PLAYERS_FILE), { recursive: true });

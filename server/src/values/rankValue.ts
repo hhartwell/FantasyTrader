@@ -20,6 +20,7 @@ export interface RankablePlayer {
   position: string | null;
   team: string | null;
   yahooId?: string | null;
+  espnId?: string | null;
 }
 
 /**
@@ -70,15 +71,21 @@ export function normalizePlayerName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-/** Prefer a Yahoo id hit. Otherwise match name and position, and skip ambiguous names. */
+/** Prefer a Yahoo or ESPN id hit. Otherwise match name and position, and skip ambiguous names. */
 export function matchSleeperPlayer(
-  yahoo: { yahooId: string; name: string; position: string },
+  external: { yahooId?: string; espnId?: string; name: string; position: string },
   players: RankablePlayer[],
 ): RankablePlayer | null {
-  const byYahoo = players.find((p) => p.yahooId && p.yahooId === yahoo.yahooId);
-  if (byYahoo) return byYahoo;
-  const key = normalizePlayerName(yahoo.name);
-  const hits = players.filter((p) => p.position === yahoo.position && normalizePlayerName(p.name) === key);
+  if (external.yahooId) {
+    const byYahoo = players.find((p) => p.yahooId && p.yahooId === external.yahooId);
+    if (byYahoo) return byYahoo;
+  }
+  if (external.espnId) {
+    const byEspn = players.find((p) => p.espnId && p.espnId === external.espnId);
+    if (byEspn) return byEspn;
+  }
+  const key = normalizePlayerName(external.name);
+  const hits = players.filter((p) => p.position === external.position && normalizePlayerName(p.name) === key);
   if (hits.length === 1) return hits[0];
   const withTeam = hits.filter((p) => p.team);
   return withTeam.length === 1 ? withTeam[0] : null;

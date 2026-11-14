@@ -1,6 +1,6 @@
 # FantasyTrader (POC)
 
-Loads a Sleeper league and suggests fair 2-team and 3-team trades. Player values
+Loads a Sleeper or ESPN league and suggests fair 2-team and 3-team trades. Player values
 come from FantasyCalc snapshots by default. You can switch a league to Sleeper ADP
 or Yahoo's overall rank instead.
 Private development proof of concept.
@@ -19,7 +19,7 @@ Without Docker, start the same beat with `npm run data:schedule`.
 Pull by hand when you want a snapshot now:
 
 ```bash
-npm run data:pull-players                                   # Sleeper players DB, max once a day
+npm run data:pull-players                                   # Sleeper players DB, including ESPN ids, max once a day
 npm run data:pull-values -- --dynasty=true --qbs=1 --teams=12 --ppr=0.5   # one combo
 npm run data:pull-values                                    # 36 combos, no TE premium
 npm run data:pull-values -- --tep=te+                       # TE+ board (te++ or all also work)
@@ -33,6 +33,8 @@ The client reaches the API over the Docker network, so only the host mapping cha
 
 Without Docker: `npm run dev` (server on 3001, Vite on 5173 with `/api` proxied).
 
+ESPN leagues load by league id, or by pasting the league URL. Public leagues need nothing else. Private leagues need the `espn_s2` and `SWID` cookies from a signed-in fantasy.espn.com session. The browser keeps those cookies in the tab, and the API sends them only on the ESPN request. Roster players match the local player list on ESPN id, then on name. Run `npm run data:pull-players` so the id match is available. A keeper league is valued as dynasty, the same way a Sleeper keeper league is.
+
 Tests: `npm test` (Vitest, no network). Typecheck: `npm run typecheck`.
 
 Admin is at `/admin` (http://localhost:5173/admin), separate from the app. Set `ADMIN_PASSWORD` in `.env` (`ADMIN_USERNAME` defaults to `admin`). Visit counts require that login. The main app does not link to it.
@@ -40,6 +42,7 @@ Admin is at `/admin` (http://localhost:5173/admin), separate from the app. Set `
 ## Layout
 
 - `server/src/sleeper.ts`: Sleeper client with a 5-minute in-memory cache
+- `server/src/espn.ts`: ESPN league client. Maps a league onto the same roster shape Sleeper uses
 - `server/src/values/`: `ValuesProvider` interface, FantasyCalc snapshots, and Sleeper/Yahoo ranking snapshots
 - `server/src/positionalNeeds.ts`: per-team surplus and deficit by position
 - `server/src/tradeEngine.ts`: package valuation, 2-team search, needs-driven 3-team search

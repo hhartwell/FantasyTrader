@@ -9,6 +9,8 @@ export interface SleeperPlayer {
   age: number | null;
   /** Yahoo player id, when the players pull stored it. */
   yahooId?: string | null;
+  /** ESPN player id, when the players pull stored it. */
+  espnId?: string | null;
 }
 
 export interface PlayersFile {

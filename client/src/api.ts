@@ -56,10 +56,23 @@ export interface LeagueTeam {
 }
 
 export interface LeagueResponse {
-  league: { id: string; name: string; season: string; rosterPositions: string[]; detected: ValuesParams };
+  warnings?: string[];
+  league: {
+    id: string;
+    name: string;
+    season: string;
+    platform?: "sleeper" | "espn";
+    rosterPositions: string[];
+    detected: ValuesParams;
+  };
   values: ValuesMeta;
   teams: LeagueTeam[];
   profiles: NeedsProfile[];
+}
+
+export interface EspnCredentials {
+  espnS2?: string;
+  swid?: string;
 }
 
 export type Position = "QB" | "RB" | "WR" | "TE";
@@ -126,8 +139,24 @@ export function fetchLeagues(username: string) {
   return request<LeaguesResponse>(`/api/leagues?username=${encodeURIComponent(username)}`);
 }
 
-export function fetchLeague(id: string, overrides?: ValuesParams, source: ValueSource = "fantasycalc") {
+function espnHeaders(auth?: EspnCredentials): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (auth?.espnS2) headers["x-espn-s2"] = auth.espnS2;
+  if (auth?.swid) headers["x-espn-swid"] = auth.swid;
+  return headers;
+}
+
+export function fetchLeague(
+  id: string,
+  overrides?: ValuesParams,
+  source: ValueSource = "fantasycalc",
+  espn?: { season: string; auth?: EspnCredentials },
+) {
   const q = new URLSearchParams();
+  if (espn) {
+    q.set("platform", "espn");
+    if (espn.season) q.set("season", espn.season);
+  }
   if (source !== "fantasycalc") q.set("source", source);
   if (overrides) {
     q.set("isDynasty", String(overrides.isDynasty));
@@ -137,7 +166,7 @@ export function fetchLeague(id: string, overrides?: ValuesParams, source: ValueS
     q.set("tep", overrides.tep);
   }
   const search = q.toString();
-  return request<LeagueResponse>(`/api/league/${id}${search ? `?${search}` : ""}`);
+  return request<LeagueResponse>(`/api/league/${id}${search ? `?${search}` : ""}`, { headers: espnHeaders(espn?.auth) });
 }
 
 export interface VisitDay {
@@ -171,19 +200,24 @@ export function adminLogout() {
   return request<{ ok: boolean }>("/api/admin/logout", { method: "POST" });
 }
 
-export function fetchTrades(body: {
-  leagueId: string;
-  myRosterId: number;
-  targetPlayerIds: string[];
-  excludedPlayerIds?: string[];
-  mode: 2 | 3;
-  tolerance: number;
-  values?: ValuesParams;
-  source?: ValueSource;
-}) {
+export function fetchTrades(
+  body: {
+    leagueId: string;
+    myRosterId: number;
+    targetPlayerIds: string[];
+    excludedPlayerIds?: string[];
+    mode: 2 | 3;
+    tolerance: number;
+    values?: ValuesParams;
+    source?: ValueSource;
+    platform?: "sleeper" | "espn";
+    season?: string;
+  },
+  auth?: EspnCredentials,
+) {
   return request<TradesResponse>("/api/trades", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...espnHeaders(auth) },
     body: JSON.stringify(body),
   });
 }

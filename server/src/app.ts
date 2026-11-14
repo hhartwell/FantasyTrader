@@ -12,8 +12,10 @@ import {
   type AdminConfig,
 } from "./admin.js";
 import { VALUES_DIR, SLEEPER_RANKINGS_FILE, YAHOO_RANKINGS_FILE, VISITS_FILE, fantasyCalcEnabled } from "./config.js";
+import { EspnClient, EspnError, type EspnAuth } from "./espn.js";
 import { VisitError, VisitStore } from "./visits.js";
-import { loadLeagueBundle, NoValuesError, valuesMeta } from "./leagueData.js";
+import { loadEspnLeagueBundle, loadLeagueBundle, NoValuesError, unmatchedPlayerWarning, valuesMeta } from "./leagueData.js";
+import { loadPlayers } from "./players.js";
 import { detectValuesParams, SleeperClient, SleeperError } from "./sleeper.js";
 import { buildNeedsContext, leagueProfiles } from "./positionalNeeds.js";
 import { suggestTrades } from "./tradeEngine.js";
@@ -24,6 +26,7 @@ import { parseValueSource, type ValueSourceId } from "./values/valueSource.js";
 
 export interface AppDeps {
   sleeper?: SleeperClient;
+  espn?: EspnClient;
   provider?: ValuesProvider;
   visits?: VisitStore;
   /** `null` closes admin login. Omit to read `ADMIN_PASSWORD` from the environment. */
@@ -35,6 +38,7 @@ const wrap = (fn: Handler) => (req: Request, res: Response, next: NextFunction) 
 
 export function createApp(deps: AppDeps = {}) {
   const sleeper = deps.sleeper ?? new SleeperClient();
+  const espn = deps.espn ?? new EspnClient(undefined, undefined, () => Object.values(loadPlayers()?.players ?? {}));
   const fantasyCalc = deps.provider ?? new FantasyCalcSnapshotProvider(VALUES_DIR);
   const sleeperRanks = new RankingSnapshotProvider(
     SLEEPER_RANKINGS_FILE,
@@ -50,6 +54,28 @@ export function createApp(deps: AppDeps = {}) {
     if (source === "yahoo") return yahooRanks;
     if (source === "sleeper" || !fantasyCalcEnabled) return sleeperRanks;
     return fantasyCalc;
+  };
+
+  const platformOf = (raw: unknown): "sleeper" | "espn" => (raw === "espn" ? "espn" : "sleeper");
+
+  const espnAuthFrom = (req: Request): EspnAuth | undefined => {
+    const espnS2 = req.get("x-espn-s2")?.trim();
+    const swid = req.get("x-espn-swid")?.trim();
+    if (!espnS2 && !swid) return undefined;
+    return { espnS2, swid };
+  };
+
+  const loadBundle = (
+    platform: "sleeper" | "espn",
+    leagueId: string,
+    overrides: Record<string, unknown>,
+    source: ValueSourceId,
+    auth?: EspnAuth,
+    season?: string,
+  ) => {
+    const provider = providerFor(source);
+    if (platform === "espn") return loadEspnLeagueBundle(espn, provider, leagueId, season, auth, overrides, source);
+    return loadLeagueBundle(sleeper, provider, leagueId, overrides, source);
   };
 
   const visits = deps.visits ?? new VisitStore(VISITS_FILE);
@@ -139,20 +165,26 @@ export function createApp(deps: AppDeps = {}) {
   app.get(
     "/api/league/:id",
     wrap(async (req, res) => {
-      const bundle = await loadLeagueBundle(
-        sleeper,
-        providerFor(parseValueSource(req.query.source)),
+      const platform = platformOf(req.query.platform);
+      const source = parseValueSource(req.query.source);
+      const bundle = await loadBundle(
+        platform,
         req.params.id,
         req.query as Record<string, unknown>,
-        parseValueSource(req.query.source),
+        source,
+        platform === "espn" ? espnAuthFrom(req) : undefined,
+        platform === "espn" ? String(req.query.season ?? "") : undefined,
       );
       const needs = buildNeedsContext(bundle.teams, bundle.league.roster_positions);
+      const warning = platform === "espn" ? unmatchedPlayerWarning(bundle.teams) : null;
       res.json({
+        warnings: warning ? [warning] : [],
         profiles: [...leagueProfiles(bundle.teams, needs).values()],
         league: {
           id: bundle.league.league_id,
           name: bundle.league.name,
           season: bundle.league.season,
+          platform,
           rosterPositions: bundle.league.roster_positions,
           detected: bundle.detected,
         },
@@ -182,7 +214,15 @@ export function createApp(deps: AppDeps = {}) {
         return res.status(400).json({ error: "tolerance must be between 0 and 0.3 (30%)" });
       }
       const source = parseValueSource(body.source);
-      const bundle = await loadLeagueBundle(sleeper, providerFor(source), leagueId, body.values ?? {}, source);
+      const platform = platformOf(body.platform);
+      const bundle = await loadBundle(
+        platform,
+        leagueId,
+        (body.values ?? {}) as Record<string, unknown>,
+        source,
+        platform === "espn" ? espnAuthFrom(req) : undefined,
+        platform === "espn" ? String(body.season ?? "") : undefined,
+      );
       const result = suggestTrades({
         teams: bundle.teams.map((t) => ({ rosterId: t.rosterId, name: t.teamName, players: t.players })),
         rosterPositions: bundle.league.roster_positions,
@@ -198,7 +238,7 @@ export function createApp(deps: AppDeps = {}) {
   );
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    if (err instanceof SleeperError) return res.status(err.status).json({ error: err.message });
+    if (err instanceof SleeperError || err instanceof EspnError) return res.status(err.status).json({ error: err.message });
     if (err instanceof NoValuesError) return res.status(503).json({ error: err.message });
     if (err instanceof VisitError) return res.status(400).json({ error: err.message });
     console.error(err);

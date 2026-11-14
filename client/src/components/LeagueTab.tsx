@@ -5,9 +5,18 @@ import { ValuesAttribution } from "./ValuesAttribution";
 import { NeedsChips } from "./NeedsChips";
 import { Card, ErrorNote, PlayerRow, Spinner } from "./ui";
 
+type Platform = "sleeper" | "espn";
+
 interface Props {
+  platform: Platform;
+  onPlatform: (platform: Platform) => void;
   username: string;
   onSearch: (username: string) => void;
+  espnLeagueId: string;
+  espnSeason: string;
+  espnS2: string;
+  espnSwid: string;
+  onEspnSearch: (input: { leagueId: string; season: string; espnS2: string; swid: string }) => void;
   leagues: LeaguesResponse | null;
   leaguesLoading: boolean;
   leaguesError: string | null;
@@ -45,39 +54,135 @@ function FieldSelect({ className = "", ...props }: SelectHTMLAttributes<HTMLSele
   );
 }
 
+const fieldCls =
+  "min-h-11 min-w-0 rounded-xl bg-slate-800 px-3 text-base ring-1 ring-slate-700 focus:outline-none focus:ring-sky-500";
+
 export function LeagueTab(props: Props) {
   const [draft, setDraft] = useState(props.username);
+  const [espnId, setEspnId] = useState(props.espnLeagueId);
+  const [season, setSeason] = useState(props.espnSeason);
+  const [espnS2, setEspnS2] = useState(props.espnS2);
+  const [swid, setSwid] = useState(props.espnSwid);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (draft.trim()) props.onSearch(draft.trim());
   };
+  const submitEspn = (e: FormEvent) => {
+    e.preventDefault();
+    props.onEspnSearch({ leagueId: espnId, season, espnS2, swid });
+  };
 
   return (
     <div className="space-y-4">
-      <Card>
-        <form onSubmit={submit} className="flex gap-2">
-          <label className="sr-only" htmlFor="username">
-            Sleeper username
-          </label>
-          <input
-            id="username"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Sleeper username"
-            autoCapitalize="none"
-            autoCorrect="off"
-            className="min-h-11 min-w-0 flex-1 rounded-xl bg-slate-800 px-3 text-base ring-1 ring-slate-700 focus:outline-none focus:ring-sky-500"
-          />
-          <button type="submit" className="min-h-11 rounded-xl bg-sky-500 px-4 text-sm font-semibold text-slate-950">
-            Find leagues
-          </button>
-        </form>
+      <Card className="space-y-3">
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="League host">
+          {(
+            [
+              ["sleeper", "Sleeper"],
+              ["espn", "ESPN"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={props.platform === id}
+              onClick={() => props.onPlatform(id)}
+              className={`min-h-11 rounded-full text-sm font-medium ring-1 ${
+                props.platform === id
+                  ? "bg-sky-500 text-slate-950 ring-sky-400"
+                  : "bg-slate-800 text-slate-300 ring-slate-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {props.platform === "sleeper" ? (
+          <form onSubmit={submit} className="flex gap-2">
+            <label className="sr-only" htmlFor="username">
+              Sleeper username
+            </label>
+            <input
+              id="username"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Sleeper username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className={`${fieldCls} flex-1`}
+            />
+            <button type="submit" className="min-h-11 rounded-xl bg-sky-500 px-4 text-sm font-semibold text-slate-950">
+              Find leagues
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={submitEspn} className="space-y-2">
+            <div className="flex gap-2">
+              <label className="sr-only" htmlFor="espn-league">
+                ESPN league id or URL
+              </label>
+              <input
+                id="espn-league"
+                value={espnId}
+                onChange={(e) => setEspnId(e.target.value)}
+                placeholder="League id or URL"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className={`${fieldCls} flex-1`}
+              />
+              <label className="sr-only" htmlFor="espn-season">
+                Season
+              </label>
+              <input
+                id="espn-season"
+                value={season}
+                onChange={(e) => setSeason(e.target.value)}
+                inputMode="numeric"
+                aria-label="Season"
+                className={`${fieldCls} w-24`}
+              />
+            </div>
+            <details className="rounded-xl bg-slate-800/60 px-3 py-2 ring-1 ring-slate-700">
+              <summary className="cursor-pointer text-sm text-slate-300">Private league cookies</summary>
+              <div className="mt-3 space-y-2">
+                <input
+                  value={espnS2}
+                  onChange={(e) => setEspnS2(e.target.value)}
+                  placeholder="espn_s2"
+                  aria-label="espn_s2 cookie"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className={`${fieldCls} w-full`}
+                />
+                <input
+                  value={swid}
+                  onChange={(e) => setSwid(e.target.value)}
+                  placeholder="SWID"
+                  aria-label="SWID cookie"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className={`${fieldCls} w-full`}
+                />
+                <p className="text-xs text-slate-400">
+                  On fantasy.espn.com, copy the espn_s2 and SWID cookies. They stay in this browser tab and are sent
+                  only to open this league.
+                </p>
+              </div>
+            </details>
+            <button type="submit" className="min-h-11 w-full rounded-xl bg-sky-500 text-sm font-semibold text-slate-950">
+              Load league
+            </button>
+          </form>
+        )}
       </Card>
 
       {props.leaguesLoading && <Spinner label="Loading leagues…" />}
       {props.leaguesError && <ErrorNote message={props.leaguesError} />}
 
-      {props.leagues && !props.leagueId && (
+      {props.platform === "sleeper" && props.leagues && !props.leagueId && (
         <div className="space-y-2">
           <h2 className="px-1 text-sm font-semibold text-slate-400">
             {props.leagues.user.displayName}'s {props.leagues.season} leagues
@@ -109,7 +214,7 @@ export function LeagueTab(props: Props) {
           onClick={() => props.onPickLeague(null)}
           className="min-h-11 px-1 text-sm text-sky-300"
         >
-          ← All leagues
+          {props.platform === "espn" ? "← Different league" : "← All leagues"}
         </button>
       )}
       {props.leagueLoading && <Spinner label="Loading rosters and values…" />}
@@ -136,7 +241,14 @@ function LeagueDetails({
     <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">{league.league.name}</h2>
-        <p className="text-xs text-slate-400">Detected from Sleeper: {settingsLabel(league.league.detected)}</p>
+        <p className="text-xs text-slate-400">
+          Detected from {league.league.platform === "espn" ? "ESPN" : "Sleeper"}: {settingsLabel(league.league.detected)}
+        </p>
+        {league.warnings?.map((warning) => (
+          <p key={warning} className="rounded-lg bg-amber-500/10 p-2 text-xs text-amber-300 ring-1 ring-amber-500/30">
+            {warning}
+          </p>
+        ))}
         <div className="grid grid-cols-2 gap-2">
           <FieldSelect
             aria-label="League type"

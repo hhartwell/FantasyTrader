@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPct, formatValue, receiveShare, settingsLabel, timeAgo } from "./format";
+import { avatarUrl, formatPct, formatValue, receiveShare, settingsLabel, timeAgo } from "./format";
 
 describe("format helpers", () => {
   it("formats values and percentages", () => {
@@ -24,6 +24,12 @@ describe("format helpers", () => {
     expect(receiveShare(100, 100)).toBe(0.5);
     expect(receiveShare(0, 0)).toBe(0.5);
     expect(receiveShare(300, 100)).toBe(0.75);
+  });
+
+  it("passes full avatar URLs through and prefixes Sleeper ids", () => {
+    expect(avatarUrl(null)).toBeNull();
+    expect(avatarUrl("abc")).toBe("https://sleepercdn.com/avatars/thumbs/abc");
+    expect(avatarUrl("https://a.espncdn.com/logo.png")).toBe("https://a.espncdn.com/logo.png");
   });
 
   it("describes snapshot age", () => {

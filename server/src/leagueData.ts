@@ -1,5 +1,12 @@
+import { EspnClient, type EspnAuth, type EspnRosterExtra } from "./espn.js";
 import { loadPlayers } from "./players.js";
-import { detectValuesParams, type SleeperClient, type SleeperLeague } from "./sleeper.js";
+import {
+  detectValuesParams,
+  type SleeperClient,
+  type SleeperLeague,
+  type SleeperLeagueUser,
+  type SleeperRoster,
+} from "./sleeper.js";
 import type { ValuesProvider, ValuesResult } from "./values/provider.js";
 import { TEP_LEVELS, type ValuesParams } from "./values/snapshotFiles.js";
 import { missingValuesMessage, type ValueSourceId } from "./values/valueSource.js";
@@ -49,6 +56,66 @@ export function mergeOverrides(detected: ValuesParams, raw: Record<string, unkno
   return out;
 }
 
+/** Skill players still keyed by an ESPN id have no trade value until the players pull can match them. */
+export function unmatchedPlayerWarning(teams: LeagueTeam[]): string | null {
+  const count = teams
+    .flatMap((team) => team.players)
+    .filter((player) => player.id.startsWith("espn:") && ["QB", "RB", "WR", "TE"].includes(player.position)).length;
+  if (count === 0) return null;
+  const noun = count === 1 ? "player" : "players";
+  return `${count} ${noun} did not match the local player list, so their trade value is 0. Run npm run data:pull-players and reload.`;
+}
+
+function assembleLeague(
+  league: SleeperLeague,
+  rosters: SleeperRoster[],
+  users: SleeperLeagueUser[],
+  extras: Map<number, EspnRosterExtra>,
+  provider: ValuesProvider,
+  overrides: Record<string, unknown>,
+  source: ValueSourceId,
+): LeagueBundle {
+  const detected = detectValuesParams(league);
+  const values = provider.getValues(mergeOverrides(detected, overrides));
+  if (!values) throw new NoValuesError(missingValuesMessage(source));
+  const playersDb = loadPlayers()?.players ?? {};
+  const usersById = new Map(users.map((u) => [u.user_id, u]));
+
+  const teams: LeagueTeam[] = rosters.map((r) => {
+    const owner = r.owner_id ? usersById.get(r.owner_id) : undefined;
+    const extra = extras.get(r.roster_id);
+    const taxi = new Set(r.taxi ?? []);
+    const reserve = new Set(r.reserve ?? []);
+    const players: RosterPlayer[] = (r.players ?? []).map((id) => {
+      const v = values.values.get(id);
+      const db = playersDb[id];
+      const label = extra?.labels[id];
+      const held = taxi.has(id) ? ("taxi" as const) : reserve.has(id) ? ("reserve" as const) : undefined;
+      return {
+        id,
+        name: v?.name ?? db?.name ?? label?.name ?? id,
+        position: v?.position ?? db?.position ?? label?.position ?? "?",
+        team: v?.team ?? db?.team ?? label?.team ?? null,
+        age: v?.age ?? db?.age ?? null,
+        value: v?.value ?? 0,
+        ...(held ? { held } : {}),
+      };
+    });
+    players.sort((a, b) => b.value - a.value);
+    return {
+      rosterId: r.roster_id,
+      ownerId: r.owner_id,
+      ownerName: owner?.display_name ?? "Unowned",
+      teamName: extra?.teamName || owner?.metadata?.team_name || owner?.display_name || `Team ${r.roster_id}`,
+      avatar: extra ? extra.avatar : (owner?.avatar ?? null),
+      totalValue: players.reduce((s, p) => s + p.value, 0),
+      players,
+    };
+  });
+
+  return { league, detected, values, teams };
+}
+
 /** Loads league, rosters, and owners from Sleeper and attaches values by sleeperId. */
 export async function loadLeagueBundle(
   sleeper: SleeperClient,
@@ -62,43 +129,21 @@ export async function loadLeagueBundle(
     sleeper.getRosters(leagueId),
     sleeper.getLeagueUsers(leagueId),
   ]);
-  const detected = detectValuesParams(league);
-  const values = provider.getValues(mergeOverrides(detected, overrides));
-  if (!values) throw new NoValuesError(missingValuesMessage(source));
-  const playersDb = loadPlayers()?.players ?? {};
-  const usersById = new Map(users.map((u) => [u.user_id, u]));
+  return assembleLeague(league, rosters, users, new Map(), provider, overrides, source);
+}
 
-  const teams: LeagueTeam[] = rosters.map((r) => {
-    const owner = r.owner_id ? usersById.get(r.owner_id) : undefined;
-    const taxi = new Set(r.taxi ?? []);
-    const reserve = new Set(r.reserve ?? []);
-    const players: RosterPlayer[] = (r.players ?? []).map((id) => {
-      const v = values.values.get(id);
-      const db = playersDb[id];
-      const held = taxi.has(id) ? ("taxi" as const) : reserve.has(id) ? ("reserve" as const) : undefined;
-      return {
-        id,
-        name: v?.name ?? db?.name ?? id,
-        position: v?.position ?? db?.position ?? "?",
-        team: v?.team ?? db?.team ?? null,
-        age: v?.age ?? db?.age ?? null,
-        value: v?.value ?? 0,
-        ...(held ? { held } : {}),
-      };
-    });
-    players.sort((a, b) => b.value - a.value);
-    return {
-      rosterId: r.roster_id,
-      ownerId: r.owner_id,
-      ownerName: owner?.display_name ?? "Unowned",
-      teamName: owner?.metadata?.team_name || owner?.display_name || `Team ${r.roster_id}`,
-      avatar: owner?.avatar ?? null,
-      totalValue: players.reduce((s, p) => s + p.value, 0),
-      players,
-    };
-  });
-
-  return { league, detected, values, teams };
+/** Loads one ESPN league and attaches values by the matched Sleeper player id. */
+export async function loadEspnLeagueBundle(
+  espn: EspnClient,
+  provider: ValuesProvider,
+  leagueId: string,
+  season: string | undefined,
+  auth: EspnAuth | undefined,
+  overrides: Record<string, unknown> = {},
+  source: ValueSourceId = "fantasycalc",
+): Promise<LeagueBundle> {
+  const loaded = await espn.getLeague(leagueId, season, auth);
+  return assembleLeague(loaded.league, loaded.rosters, loaded.users, loaded.extras, provider, overrides, source);
 }
 
 export function valuesMeta(v: ValuesResult) {

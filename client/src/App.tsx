@@ -3,6 +3,7 @@ import {
   fetchLeague,
   fetchLeagues,
   fetchTrades,
+  type EspnCredentials,
   type LeagueResponse,
   type LeaguesResponse,
   type TradesResponse,
@@ -16,10 +17,41 @@ import { LeagueTab } from "./components/LeagueTab";
 import { TargetsTab } from "./components/TargetsTab";
 import { TradesTab } from "./components/TradesTab";
 import { ValueSourceSelect } from "./components/ValueSourceSelect";
+import { canonicalSwid, defaultEspnSeason, parseEspnLookup } from "./lib/espn";
 import { recordVisit } from "./visits";
 
 const USERNAME_KEY = "fantasytrader.username";
 const KEPT_KEY = "fantasytrader.kept";
+const PLATFORM_KEY = "fantasytrader.platform";
+const ESPN_LEAGUE_KEY = "fantasytrader.espnLeagueId";
+const ESPN_SEASON_KEY = "fantasytrader.espnSeason";
+const ESPN_AUTH_KEY = "fantasytrader.espnAuth";
+
+type Platform = "sleeper" | "espn";
+
+function readPlatform(): Platform {
+  return localStorage.getItem(PLATFORM_KEY) === "espn" ? "espn" : "sleeper";
+}
+
+function readEspnAuth(): EspnCredentials {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(ESPN_AUTH_KEY) ?? "{}") as EspnCredentials;
+    return {
+      espnS2: typeof parsed.espnS2 === "string" ? parsed.espnS2 : "",
+      swid: typeof parsed.swid === "string" ? parsed.swid : "",
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeEspnAuth(auth: EspnCredentials) {
+  if (!auth.espnS2 && !auth.swid) {
+    sessionStorage.removeItem(ESPN_AUTH_KEY);
+    return;
+  }
+  sessionStorage.setItem(ESPN_AUTH_KEY, JSON.stringify(auth));
+}
 
 function readKept(leagueId: string): string[] {
   try {
@@ -45,13 +77,19 @@ function writeKept(leagueId: string, ids: string[]) {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("league");
+  const [platform, setPlatform] = useState<Platform>(readPlatform);
   const [username, setUsername] = useState(() => localStorage.getItem(USERNAME_KEY) ?? "");
+  const [espnLeagueId, setEspnLeagueId] = useState(() => localStorage.getItem(ESPN_LEAGUE_KEY) ?? "");
+  const [espnSeason, setEspnSeason] = useState(() => localStorage.getItem(ESPN_SEASON_KEY) ?? defaultEspnSeason());
+  const [espnAuth, setEspnAuth] = useState<EspnCredentials>(readEspnAuth);
 
   const [leagues, setLeagues] = useState<LeaguesResponse | null>(null);
   const [leaguesLoading, setLeaguesLoading] = useState(false);
   const [leaguesError, setLeaguesError] = useState<string | null>(null);
 
-  const [leagueId, setLeagueId] = useState<string | null>(null);
+  const [leagueId, setLeagueId] = useState<string | null>(() =>
+    readPlatform() === "espn" ? localStorage.getItem(ESPN_LEAGUE_KEY) : null,
+  );
   const [overrides, setOverrides] = useState<ValuesParams | null>(null);
   const [league, setLeague] = useState<LeagueResponse | null>(null);
   const [leagueLoading, setLeagueLoading] = useState(false);
@@ -85,12 +123,41 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (username) searchLeagues(username);
+    if (readPlatform() === "sleeper" && username) searchLeagues(username);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const changePlatform = (next: Platform) => {
+    setPlatform(next);
+    localStorage.setItem(PLATFORM_KEY, next);
+    pickLeague(null);
+    setLeagues(null);
+    setLeaguesError(null);
+    if (next === "sleeper" && username) searchLeagues(username);
+  };
+
+  const searchEspn = (input: { leagueId: string; season: string; espnS2: string; swid: string }) => {
+    let parsed: { leagueId: string; season: string };
+    try {
+      parsed = parseEspnLookup(input.leagueId, input.season);
+    } catch (e) {
+      setLeaguesError((e as Error).message);
+      return;
+    }
+    const auth = { espnS2: input.espnS2.trim(), swid: input.swid.trim() };
+    setEspnLeagueId(parsed.leagueId);
+    setEspnSeason(parsed.season);
+    setEspnAuth(auth);
+    localStorage.setItem(ESPN_LEAGUE_KEY, parsed.leagueId);
+    localStorage.setItem(ESPN_SEASON_KEY, parsed.season);
+    writeEspnAuth(auth);
+    setLeaguesError(null);
+    pickLeague(parsed.leagueId);
+  };
+
   const pickLeague = (id: string | null) => {
     setLeagueId(id);
+    if (!id && platform === "espn") localStorage.removeItem(ESPN_LEAGUE_KEY);
     setLeague(null);
     setOverrides(null);
     setTargets([]);
@@ -99,13 +166,18 @@ export default function App() {
     setMyRosterId(null);
   };
 
-  const userId = leagues?.user.userId;
+  const userId = platform === "espn" ? (canonicalSwid(espnAuth.swid) ?? undefined) : leagues?.user.userId;
   useEffect(() => {
     if (!leagueId) return;
     let cancelled = false;
     setLeagueLoading(true);
     setLeagueError(null);
-    fetchLeague(leagueId, overrides ?? undefined, valueSource)
+    fetchLeague(
+      leagueId,
+      overrides ?? undefined,
+      valueSource,
+      platform === "espn" ? { season: espnSeason, auth: espnAuth } : undefined,
+    )
       .then((res) => {
         if (cancelled) return;
         setLeague(res);
@@ -116,7 +188,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, overrides, userId, valueSource]);
+  }, [leagueId, overrides, userId, valueSource, platform, espnSeason, espnAuth]);
 
   const settings = overrides ?? league?.values.requested ?? null;
 
@@ -125,16 +197,20 @@ export default function App() {
     setTab("trades");
     setTradesLoading(true);
     setTradesError(null);
-    fetchTrades({
-      leagueId,
-      myRosterId,
-      targetPlayerIds: targets,
-      excludedPlayerIds: kept,
-      mode,
-      tolerance,
-      values: settings ?? undefined,
-      source,
-    })
+    fetchTrades(
+      {
+        leagueId,
+        myRosterId,
+        targetPlayerIds: targets,
+        excludedPlayerIds: kept,
+        mode,
+        tolerance,
+        values: settings ?? undefined,
+        source,
+        ...(platform === "espn" ? { platform, season: espnSeason } : {}),
+      },
+      platform === "espn" ? espnAuth : undefined,
+    )
       .then(setTrades)
       .catch((e: Error) => setTradesError(e.message))
       .finally(() => setTradesLoading(false));
@@ -177,8 +253,15 @@ export default function App() {
         {leagueId && <ValueSourceSelect value={valueSource} onChange={changeValueSource} />}
         {tab === "league" && (
           <LeagueTab
+            platform={platform}
+            onPlatform={changePlatform}
             username={username}
             onSearch={searchLeagues}
+            espnLeagueId={espnLeagueId}
+            espnSeason={espnSeason}
+            espnS2={espnAuth.espnS2 ?? ""}
+            espnSwid={espnAuth.swid ?? ""}
+            onEspnSearch={searchEspn}
             leagues={leagues}
             leaguesLoading={leaguesLoading}
             leaguesError={leaguesError}
